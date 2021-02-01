@@ -599,8 +599,11 @@ __interrupt void adca1_isr(void){
 
     Velo_ant1 = Velo_avg;
 
+    vc_obs = 250*(EPwm1Regs.CMPA.bit.CMPA > EPwm1Regs.TBCTR);
+    vb_obs = 250*(EPwm2Regs.CMPA.bit.CMPA > EPwm1Regs.TBCTR);
+    va_obs = 250*(EPwm3Regs.CMPA.bit.CMPA > EPwm1Regs.TBCTR);
     refmras = ref_MRAS(va_obs, vb_obs, vc_obs, ia_obs, ib_obs, ic_obs);
-    int ref_dac = (int)(refmras*2048);
+    //int ref_dac = (int)(refmras*2048);
     //DacaRegs.DACVALS.all = ref_dac;
 
     DacaRegs.DACVALS.all = ref_Velo_AD;
@@ -863,10 +866,6 @@ __interrupt void adca1_isr(void){
                 Vb = Vb*8;
                 Vc = Vc*8;
 
-                va_obs = Va*250/4096;
-                vb_obs = Vb*250/4096;
-                vc_obs = Va*250/4096;
-
                 //OFFSET:
                 Va = Va + 2000;
                 Vb = Vb + 2000;
@@ -969,25 +968,25 @@ float32 ref_MRAS(float32 va_in, float32 vb_in, float32 vc_in, float32 ia_in, flo
     float32 xkb = (vb - Rs*ib);
 
     // Integração
-    //float32 aux_alpha = aux_alphak1 + (Ts/2)*xka + (Ts/2)*xka1;
-    //float32 aux_beta  = aux_betak1  + (Ts/2)*xkb + (Ts/2)*xkb1;
-    aux_alpha = aux_alpha + (Ts/2)*xka + (Ts/2)*xka1;
-    aux_beta  = aux_beta  + (Ts/2)*xkb + (Ts/2)*xkb1;
+    float32 aux_alpha = aux_alphak1 + (Ts/2)*xka + (Ts/2)*xka1;
+    float32 aux_beta  = aux_betak1  + (Ts/2)*xkb + (Ts/2)*xkb1;
+    //aux_alpha = aux_alpha + (Ts/2)*xka + (Ts/2)*xka1;
+    //aux_beta  = aux_beta  + (Ts/2)*xkb + (Ts/2)*xkb1;
 
     float32 phir_alpha_st = (Lr/Lm)*(aux_alpha - sigma*Ls*ia );
     float32 phir_beta_st  = (Lr/Lm)*(aux_beta  - sigma*Ls*ib );
 
 
     // Modelo Adaptativo
-    //float32 dphir_alpha_rt = -(1/Tr)*phir_alpha_rtk1 - wr*phir_beta_rtk1  + (Lm/Tr)*ia;
-    //float32 dphir_beta_rt  = -(1/Tr)*phir_beta_rtk1  + wr*phir_alpha_rtk1 + (Lm/Tr)*ib;
-    //float32 phir_alpha_rt  = phir_alpha_rtk1 + (Ts/2)*dphir_alpha_rt + (Ts/2)*dphia_k1;
-    //float32 phir_beta_rt   = phir_beta_rtk1  + (Ts/2)*dphir_beta_rt  + (Ts/2)*dphib_k1;
+    float32 dphir_alpha_rt = -(1/Tr)*phir_alpha_rtk1 - wr*phir_beta_rtk1  + (Lm/Tr)*ia;
+    float32 dphir_beta_rt  = -(1/Tr)*phir_beta_rtk1  + wr*phir_alpha_rtk1 + (Lm/Tr)*ib;
+    float32 phir_alpha_rt  = phir_alpha_rtk1 + (Ts/2)*dphir_alpha_rt + (Ts/2)*dphia_k1;
+    float32 phir_beta_rt   = phir_beta_rtk1  + (Ts/2)*dphir_beta_rt  + (Ts/2)*dphib_k1;
 
-    dphir_alpha_rt = -(1/Tr)*phir_alpha_rt - wr*phir_beta_rt  + (Lm/Tr)*ia;
-    dphir_beta_rt  = -(1/Tr)*phir_beta_rt  + wr*phir_alpha_rt + (Lm/Tr)*ib;
-    phir_alpha_rt  = phir_alpha_rt + (Ts/2)*dphir_alpha_rt + (Ts/2)*dphia_k1;
-    phir_beta_rt   = phir_beta_rt  + (Ts/2)*dphir_beta_rt  + (Ts/2)*dphib_k1;
+    //dphir_alpha_rt = -(1/Tr)*phir_alpha_rt - wr*phir_beta_rt  + (Lm/Tr)*ia;
+    //dphir_beta_rt  = -(1/Tr)*phir_beta_rt  + wr*phir_alpha_rt + (Lm/Tr)*ib;
+    //phir_alpha_rt  = phir_alpha_rt + (Ts/2)*dphir_alpha_rt + (Ts/2)*dphia_k1;
+    //phir_beta_rt   = phir_beta_rt  + (Ts/2)*dphir_beta_rt  + (Ts/2)*dphib_k1;
 
 
     // Mecanismo de adaptação
