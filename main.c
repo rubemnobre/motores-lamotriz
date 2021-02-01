@@ -255,9 +255,9 @@ void main(void)
         pin12 = GpioDataRegs.GPADAT.bit.GPIO14;
 
         //MODULADORA SENOIDAL PARA PWM EM MALHA ABERTA.
-        b=2000 + 1600*__sin(theta_atual_ma);
-        c=2000 + 1600*__sin(theta_atual_ma  -  ((DPI)/3));
-        d=2000 + 1600*__sin(theta_atual_ma  -  ((2*DPI)/3));
+        b=4000 + 3200*__sin(theta_atual_ma);
+        c=4000 + 3200*__sin(theta_atual_ma  -  ((DPI)/3));
+        d=4000 + 3200*__sin(theta_atual_ma  -  ((2*DPI)/3));
 
         //LOOP.
         for(;;){
@@ -862,34 +862,34 @@ __interrupt void adca1_isr(void){
                 Va_sg = Va;
                 Vb_sg = Vb;
                 Vc_sg = Vc;
-                Va = Va*8;
-                Vb = Vb*8;
-                Vc = Vc*8;
+                Va = Va*16;
+                Vb = Vb*16;
+                Vc = Vc*16;
 
                 //OFFSET:
-                Va = Va + 2000;
-                Vb = Vb + 2000;
-                Vc = Vc + 2000;
+                Va = Va + 4000;
+                Vb = Vb + 4000;
+                Vc = Vc + 4000;
 
                 //SATURADOR:
-                if (Va >= 4000){
-                    Va = 3950;
+                if (Va >= 8000){
+                    Va = 7950;
                 }
 
                 if (Va <= 0){
                     Va = 50;
                 }
 
-                if (Vb>=4000){
-                    Vb = 3950;
+                if (Vb>=8000){
+                    Vb = 7950;
                 }
 
                 if (Vb<=0 ){
                     Vb = 50;
                 }
 
-                if (Vc>=4000){
-                    Vc = 3950;
+                if (Vc>=8000){
+                    Vc = 7950;
                 }
 
                 if (Vc<=0 ){
