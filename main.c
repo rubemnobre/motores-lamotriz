@@ -7,99 +7,78 @@
 #include <math.h>
 #include <stdio.h>
 #include "F28x_Project.h"
+#include "params.h"
 
 #define DPI 6.28318530717958647692
 
-//DAC:
-//volatile struct DAC_REGS* DAC_PTR[4] = {0x0,&DacaRegs,&DacbRegs,&DaccRegs};
 //VARIÁVEIS GLOBAIS.
 
-float32 t = 0;//Variável para medição de tempo.
-short saida =0; //Variável para controle do loop principal.
-float32 b,c,d=0; // Valores de moduladora para PWM em malha aberta.
-float32 theta_atual_ma=0; //Ângulo para aplicação das transformadas de eixo em malha aberta.
-float32 theta_ant_ma=0; // Armazena valor anterior do ângulo para aplicação das transformadsa de eixo em malha aberta.
-float32 theta_ant=0; // Armazena valor anterior do ângulo para aplicação das transformadsa de eixo em malha fechada.
-float32 theta_atual=0; // Armazena valor anterior do ângulo para aplicação das transformadsa de eixo em malha feechada.
+float t = 0;//Variável para medição de tempo.
+int saida = 0; //Variável para controle do loop principal.
+float b,c,d = 0; // Valores de moduladora para PWM em malha aberta.
+float theta_atual_ma = 0; //Ângulo para aplicação das transformadas de eixo em malha aberta.
+float theta_ant_ma = 0; // Armazena valor anterior do ângulo para aplicação das transformadsa de eixo em malha aberta.
+float theta_ant = 0; // Armazena valor anterior do ângulo para aplicação das transformadsa de eixo em malha fechada.
+float theta_atual = 0; // Armazena valor anterior do ângulo para aplicação das transformadsa de eixo em malha feechada.
 
 //Variáveis de auxílio para aplicação das transformadas de eixo.
-Uint16 pin12=0,cont_zero=0; //Variáveis de controle gerias.
-int16 Ia_med , Ib_med , Ic_med , Ia_med0 , Ib_med0 , Ic_med0 , Ia_off , Ib_off , Ic_off,I_d_AD,I_q_AD; //Tratamento das variáveis medidas mo conversor AD.
-float32  Ia_g , Ib_g , Ic_g , I_a , I_b , I_c;
+unsigned int pin12 = 0,cont_zero = 0; //Variáveis de controle gerias.
+int Ia_med, Ib_med, Ic_med, Ia_med0, Ib_med0, Ic_med0, I_d_AD, I_q_AD; //Tratamento das variáveis medidas mo conversor AD.
+float  ia, ib, ic;
 
 //Correntes de referência nos eixos d/q.
-float32 I_d =0;
-float32 I_q =0;
-float32 erro_cd =0; //Erro para o controlador (eixo d).
-float32 erro_cq =0; //Erro para o controlador (eixo q).
-float32 erro_cd_ant1 =0; //Erro para o controlador uma amostra anterior (eixo d).
-float32 erro_cq_ant1 =0; //Erro para o controladoruyma amostra anterior (eixo q).
-float32 v_atual_d =0; //Saída de tensão atual do controlador (eixo d).
-float32 v_atual_q =0; //Saída de tensão atual do controlador (eixo q).
-float32 v_d_ant =0; //Saída de tensão  do controlador uma amostra anteriorr (eixo d).
-float32 v_q_ant =0; //Saída de tensão  do controlador uma amostra anterior (eixo q).
-float32 I_atual_d=0; //Saída de corrente da planta controlada (eixo d).
-float32 I_atual_q=0; //Saída de corrente da planta controlada (eixo q).
-float32 I_d_ant =0; //Saída de corrente  do controlador uma amostra anteriorr (eixo d).
-float32 I_q_ant =0; //Saída de corrente  do controlador uma amostra anterior (eixo q).
+float I_d =0;
+float I_q =0;
+float erro_cd =0; //Erro para o controlador (eixo d).
+float erro_cq =0; //Erro para o controlador (eixo q).
+float erro_cd_ant1 =0; //Erro para o controlador uma amostra anterior (eixo d).
+float erro_cq_ant1 =0; //Erro para o controladoruyma amostra anterior (eixo q).
+float v_atual_d =0; //Saída de tensão atual do controlador (eixo d).
+float v_atual_q =0; //Saída de tensão atual do controlador (eixo q).
+float v_d_ant =0; //Saída de tensão  do controlador uma amostra anteriorr (eixo d).
+float v_q_ant =0; //Saída de tensão  do controlador uma amostra anterior (eixo q).
+float I_atual_d=0; //Saída de corrente da planta controlada (eixo d).
+float I_atual_q=0; //Saída de corrente da planta controlada (eixo q).
+float I_d_ant =0; //Saída de corrente  do controlador uma amostra anteriorr (eixo d).
+float I_q_ant =0; //Saída de corrente  do controlador uma amostra anterior (eixo q).
 
-float32 Va =0; //tensões de saída do modulador.
-float32 Vb =0;
-float32 Vc =0;
-float32 theta_rad; // Ângulo calculado no integrador.
-float32 ref_kd =0; //Valores de referência para os eixos d e q.
-float32 ref_kq =0;
-Uint16 ref_kd_AD =0; //Valores de referência para os eixos d e q em valores digitais.
-Uint16 ref_kq_AD =0;
-float32 ref_kq_ant =0;//Valores passados para a referência de corrente no eixo q.
-
-//Parâmetros da máquina
-
-const float32 Rs = 35.58;
-const float32 Rr = 87.44;
-const float32 Lls = 0.16;
-const float32 Llr = 0.16;
-const float32 Ls = 1.044; //Lls +Lm
-const float32 Lr = 1.044; //Llr +Lm
-const float32 Lm = 0.884;
-
-Uint16 p = 2; // pares de polos
-
-//Parâmetros do Observador
-const float32 fsw = 6e3;                  // Frequência de chaveamento
-const float32 Ts = 80e-6;         // tempo de amostragem do observador 1/(fsw*100)
-const float32 sigma = 0.346442359;        // coeficiente total de dispersão 1 - (Lm^2/(Ls*Lr))
-const float32 Tr = 0.011939615;           // constante de tempo rotórica (Lr/Rr)
-const float32 fpb_a = 800;                    // parâmetro para FPB
-const float32 fpb_b = -792;                   // parâmetro para FPB (-0.99*a)
+float Va =0; //tensões de saída do modulador.
+float Vb =0;
+float Vc =0;
+float theta_rad; // Ângulo calculado no integrador.
+float ref_kd =0; //Valores de referência para os eixos d e q.
+float ref_kq =0;
+unsigned int ref_kd_AD =0; //Valores de referência para os eixos d e q em valores digitais.
+unsigned int ref_kq_AD =0;
+float ref_kq_ant =0;//Valores passados para a referência de corrente no eixo q.
 
 //Variáveis gerais.
-float32 T = 0; //Constante de tempo do rotor.
-float32 w=0;   //Velocidade mecânica do rotor em rad/s.
-float32 w_eletrica=0;  // Velocidade angular elétrica medida em rad/s.
-Uint16 Posicao_ADC = 0; //Leitura da velocidade no módulo eqep.
-float32 Rotor_Posicao = 0; //Posição angular do rotor.
-float32 Rotor_Posicao_Ant = 0; //Memória da posição angular do rotor.
-float32 delta_posicao =0; //Variação da posição angular do rotor.
-float32 delta_posicao_1 =0; //Variação da posição angular do rotor (variável auxiliar).
-float32 Velo = 0; //Medida de velocidade mecânica do rotor em RPM.
-float32 Velo_avg =0; //Leitura filtrada de velocidade.
-Uint32 Velo_ADC =0 ; //Medida digital da velocidade.
-float32 Velo_aux = 0; //Variável auxiliar para controle de velocidade.
-float32 wsl=0;  //Velocidade de escorregamento do rotor.
-float32 w_tot =0; //Velocidade elétrica do rotor em rad/s.
-float32 w_avg =0; //Velocidade angular depois do filtro.
-float32 ref_Velo = 600; //Referência de velocidade para o controle do motor.
-Uint16 ref_Velo_AD =0; //Referência digital de velocidade.
-Uint16 ref = 1;   //Escolha da referência de velocidade.
-float32 ref_Velo1 =0; //Referência de velocidade para o controle do motor.
-float32 cont_velo =0; //Contador para a malha de velocidade.
-float32 cont_velo_aux =0; //Contador para a referência de velocidade.
-float32 erro_Velo =0; // Erro para a amlha de velocidade.
-float32 erro_Velo_ant1 =0; //Valores passados para o erro da malha de velocidade.
-float32 Velo_ant1 =0;//Valores passados para a velociddae do motor.
+float T = 0; //Constante de tempo do rotor.
+float w=0;   //Velocidade mecânica do rotor em rad/s.
+float w_eletrica=0;  // Velocidade angular elétrica medida em rad/s.
+unsigned int Posicao_ADC = 0; //Leitura da velocidade no módulo eqep.
+float Rotor_Posicao = 0; //Posição angular do rotor.
+float Rotor_Posicao_Ant = 0; //Memória da posição angular do rotor.
+float delta_posicao =0; //Variação da posição angular do rotor.
+float delta_posicao_1 =0; //Variação da posição angular do rotor (variável auxiliar).
+float Velo = 0; //Medida de velocidade mecânica do rotor em RPM.
+float Velo_avg =0; //Leitura filtrada de velocidade.
+unsigned long Velo_ADC =0 ; //Medida digital da velocidade.
+float Velo_aux = 0; //Variável auxiliar para controle de velocidade.
+float wsl=0;  //Velocidade de escorregamento do rotor.
+float w_tot =0; //Velocidade elétrica do rotor em rad/s.
+float w_avg =0; //Velocidade angular depois do filtro.
+float ref_Velo = 600; //Referência de velocidade para o controle do motor.
+unsigned int ref_Velo_AD =0; //Referência digital de velocidade.
+unsigned int ref = 1;   //Escolha da referência de velocidade.
+float ref_Velo1 =0; //Referência de velocidade para o controle do motor.
+float cont_velo =0; //Contador para a malha de velocidade.
+float cont_velo_aux =0; //Contador para a referência de velocidade.
+float erro_Velo =0; // Erro para a amlha de velocidade.
+float erro_Velo_ant1 =0; //Valores passados para o erro da malha de velocidade.
+float Velo_ant1 =0;//Valores passados para a velociddae do motor.
 
-float32 va_obs = 0, vb_obs = 0, vc_obs = 0, ia_obs = 0, ib_obs = 0, ic_obs = 0, refmras = 0;
+float va_obs = 0, vb_obs = 0, vc_obs = 0, ia_obs = 0, ib_obs = 0, ic_obs = 0, refmras = 0;
 
 // FUNCTIONS
 void InitEPwmS(void);
@@ -113,7 +92,7 @@ __interrupt void adca1_isr(void);
 __interrupt void epwm1_isr(void);
 __interrupt void epwm2_isr(void);
 __interrupt void epwm3_isr(void);
-float32 ref_MRAS(float32, float32, float32, float32, float32, float32);
+float ref_MRAS(float, float, float, float, float, float);
 // MAIN
 void main(void){
     //INICIALIZAÇÃO DO CONTROLE DO SISTEMA.
@@ -340,9 +319,9 @@ void InitEPwmS(){
     EPwm3Regs.ETPS.bit.INTPRD = 1;
 }
 
-const short vpeak = 250;
+const int vpeak = 250;
 
-short epwm1_high = 0;
+int epwm1_high = 0;
 __interrupt void epwm1_isr(){
     if(epwm1_high == 0){
         vc_obs = vpeak;
@@ -357,7 +336,7 @@ __interrupt void epwm1_isr(){
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP3;
 }
 
-short epwm2_high = 0;
+int epwm2_high = 0;
 __interrupt void epwm2_isr(){
     if(epwm2_high == 0){
         vb_obs = vpeak;
@@ -372,7 +351,7 @@ __interrupt void epwm2_isr(){
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP3;
 }
 
-short epwm3_high = 0;
+int epwm3_high = 0;
 __interrupt void epwm3_isr(){
     if(epwm3_high == 0){
         va_obs = vpeak;
@@ -475,13 +454,10 @@ void SetupADC(void){
     AdcaRegs.ADCINTSEL1N2.bit.INT1E = 1;    //enable INT1 flag
     AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;  //make sure INT1 flag is cleared
 
-
     //Configuração ADC-B
     AdcbRegs.ADCSOC1CTL.bit.CHSEL = 3;      //SOC1 will convert pin B3
     AdcbRegs.ADCSOC1CTL.bit.ACQPS = 28;
     AdcbRegs.ADCSOC1CTL.bit.TRIGSEL = 2;    //trigger on TIMER1 SOCA/C
-
-
 
     //Configuração ADC-C
     AdccRegs.ADCSOC2CTL.bit.CHSEL = 3;  //SOC2 will convert pin C3
@@ -568,15 +544,11 @@ __interrupt void adca1_isr(void){
         //Velocidade medida em valores digitais.
         Velo_ADC = (int)(2.048*Velo_avg);
     }
-
     Rotor_Posicao_Ant = Rotor_Posicao;
-
     Velo_ant1 = Velo_avg;
 
-    vc_obs = 250*(EPwm1Regs.CMPA.bit.CMPA > EPwm1Regs.TBCTR);
-    vb_obs = 250*(EPwm2Regs.CMPA.bit.CMPA > EPwm1Regs.TBCTR);
-    va_obs = 250*(EPwm3Regs.CMPA.bit.CMPA > EPwm1Regs.TBCTR);
-    refmras = ref_MRAS(va_obs, vb_obs, vc_obs, ia_obs, ib_obs, ic_obs);
+    refmras = ref_MRAS(va_obs, vb_obs, vc_obs, ia, ib, ic);
+
     //int ref_dac = (int)(refmras*2048);
     //DacaRegs.DACVALS.all = ref_dac;
 
@@ -594,27 +566,10 @@ __interrupt void adca1_isr(void){
             Ib_med = AdcaResultRegs.ADCRESULT0;
             Ia_med = AdccResultRegs.ADCRESULT2;
 
-            //CORRECAO DOS VALORES;
-            Ic_off = Ic_med - Ic_med0;//Offset
-            Ib_off = Ib_med - Ib_med0;//Offset
-            Ia_off = Ia_med - Ia_med0;//Offset
-
-            //VALORES REAIS - TENSÃO;
-
-            Ic_g = (float)(Ic_off*0.0008056640625); //ganho do ad 3.3/4096
-            Ib_g = (float)(Ib_off*0.0008056640625); //ganho do ad 3.3/4095
-            Ia_g = (float)(Ia_off*0.0008056640625); //ganho do ad 3.3/4096
-
-            //VALORES REAIS - CORRENTE
-
-            I_c = (float)(Ic_g*1.33);
-            I_b = (float)(Ib_g*1.33);
-            I_a = (float)(Ia_g*1.33);
-
-            //valores de i para o observador
-            ia_obs = I_a;
-            ib_obs = I_b;
-            ic_obs = I_c;
+            //Ganho do ADC * Ganho do sensor;
+            ic = (Ic_med - Ic_med0)*0.0008056640625*1.33;
+            ib = (Ib_med - Ib_med0)*0.0008056640625*1.33;
+            ia = (Ia_med - Ia_med0)*0.0008056640625*1.33;
 
             if(cont_controle == 1){
                 //CAMPO ORIENTADO INDIRETO.
@@ -634,9 +589,7 @@ __interrupt void adca1_isr(void){
                     theta_ant = theta_atual;// Controle para manter Theta
                 }
 
-
                 // APLICAÇÃO DAS TRANSFORMADAS DE EIXO DE CLARKE E PARK.
-
                 // 2 - park.
                 theta_rad = theta_atual;
 
@@ -647,15 +600,8 @@ __interrupt void adca1_isr(void){
                     theta_rad = theta_rad + DPI;
                 }
 
-                //A1=I_a*__cos(theta_rad);
-                //B1 = I_b*__cos(theta_rad - ((DPI)/3));
-                //C1 =I_c*__cos(theta_rad -((2*DPI)/3));
-                //A2=-I_a*__sin(theta_rad);
-                //B2 =- I_b*__sin(theta_rad - ((DPI)/3));
-                //C2 =-I_c*__sin(theta_rad -((2*DPI)/3));
-
-                I_d = 0.81649658092772603273242802490196*(I_a*__cos(theta_rad) + I_b*__cos(theta_rad - ((DPI)/3)) + I_c*__cos(theta_rad -((2*DPI)/3)));
-                I_q = 0.81649658092772603273242802490196*(-I_a*__sin(theta_rad) - I_b*__sin(theta_rad - ((DPI)/3)) - I_c*__sin(theta_rad -((2*DPI)/3)));
+                I_d = 0.81649658092772603273242802490196*(ia*__cos(theta_rad) + ib*__cos(theta_rad - ((DPI)/3)) + ic*__cos(theta_rad -((2*DPI)/3)));
+                I_q = 0.81649658092772603273242802490196*(-ia*__sin(theta_rad) - ib*__sin(theta_rad - ((DPI)/3)) - ic*__sin(theta_rad -((2*DPI)/3)));
 
                 I_atual_d = I_d;
                 I_atual_q = I_q;
@@ -855,60 +801,4 @@ void SetupEQEP1(){
     EQep1Regs.QCAPCTL.bit.CCPS = 7;       // 1/128 for CAP clock
     EQep1Regs.QCAPCTL.bit.CEN = 1;        // QEP Capture Enable
     EDIS;
-}
-
-// Declarações dos anteriores para ref_mras
-float32 xka1 = 0, xkb1 = 0, dphia_k1 = 0, dphib_k1 = 0, prodk1 = 0, wrk1 = 0, wrf = 0, wr = 0;
-
-float32 aux_alpha = 0, aux_beta = 0, phir_alpha_rt = 0, phir_beta_rt = 0, dphir_alpha_rt = 0, dphir_beta_rt = 0;
-
-float32 ref_MRAS(float32 va_in, float32 vb_in, float32 vc_in, float32 ia_in, float32 ib_in, float32 ic_in){
-    // ============ Modelo de Referência ============================================================
-    // Entradas: va - tensão alpha; vb - tensão beta; ia - corrente alpha; ib - corrente beta;
-
-    //transformação de clarke de v
-    float32 va = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
-    float32 vb = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
-
-    //transformação de clarke de i
-    float32 ia = (2.0/3.0)*(ia_in - 0.5*ib_in -0.5*ic_in);
-    float32 ib = (2.0/3.0)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
-
-    //Variável auxiliar para integração
-    float32 xka = (va - Rs*ia);
-    float32 xkb = (vb - Rs*ib);
-
-    //Integração
-    aux_alpha = aux_alpha + (Ts/2)*xka + (Ts/2)*xka1;
-    aux_beta  = aux_beta  + (Ts/2)*xkb + (Ts/2)*xkb1;
-
-    float32 phir_alpha_st = (Lr/Lm)*(aux_alpha - sigma*Ls*ia );
-    float32 phir_beta_st  = (Lr/Lm)*(aux_beta  - sigma*Ls*ib );
-
-
-    //Modelo Adaptativo
-    dphir_alpha_rt = -(1/Tr)*phir_alpha_rt - wr*phir_beta_rt  + (Lm/Tr)*ia;
-    dphir_beta_rt  = -(1/Tr)*phir_beta_rt  + wr*phir_alpha_rt + (Lm/Tr)*ib;
-    phir_alpha_rt  = phir_alpha_rt + (Ts/2)*dphir_alpha_rt + (Ts/2)*dphia_k1;
-    phir_beta_rt   = phir_beta_rt  + (Ts/2)*dphir_beta_rt  + (Ts/2)*dphib_k1;
-
-
-    //Mecanismo de adaptação
-    float32 prodk = -(phir_beta_st*phir_alpha_rt - phir_alpha_st*phir_beta_rt);
-    wr = (wrk1 + fpb_b*prodk1 + fpb_a*prodk);
-
-
-    //Filtro passa-baixas
-    wrf = (wrf + Ts*100*wr)/(1+Ts*100);
-
-    //Atualização das variáveis
-    xka1 = xka;
-    xkb1 = xkb;
-
-    dphia_k1 = dphir_alpha_rt;
-    dphib_k1 = dphir_beta_rt;
-
-    prodk1 = prodk;
-    wrk1 = wr;
-    return (60.0/DPI)*(1.0/p)*wr;  // conversão de rad/s para rpm
 }
