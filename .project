@@ -28,72 +28,87 @@
 		<link>
 			<name>2837xD_RAM_lnk_cpu1.cmd</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/support/common/cmd/2837xD_RAM_lnk_cpu1.cmd</locationURI>
+			<locationURI>DEVICE_SUPPORT/common/cmd/2837xD_RAM_lnk_cpu1.cmd</locationURI>
 		</link>
 		<link>
 			<name>F2837xD_Adc.c</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/support/common/source/F2837xD_Adc.c</locationURI>
+			<locationURI>DEVICE_SUPPORT/common/source/F2837xD_Adc.c</locationURI>
 		</link>
 		<link>
 			<name>F2837xD_CodeStartBranch.asm</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/support/common/source/F2837xD_CodeStartBranch.asm</locationURI>
+			<locationURI>DEVICE_SUPPORT/common/source/F2837xD_CodeStartBranch.asm</locationURI>
 		</link>
 		<link>
 			<name>F2837xD_CpuTimers.c</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/support/common/source/F2837xD_CpuTimers.c</locationURI>
+			<locationURI>DEVICE_SUPPORT/common/source/F2837xD_CpuTimers.c</locationURI>
 		</link>
 		<link>
 			<name>F2837xD_DefaultISR.c</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/support/common/source/F2837xD_DefaultISR.c</locationURI>
+			<locationURI>DEVICE_SUPPORT/common/source/F2837xD_DefaultISR.c</locationURI>
 		</link>
 		<link>
 			<name>F2837xD_EPwm.c</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/support/common/source/F2837xD_EPwm.c</locationURI>
+			<locationURI>DEVICE_SUPPORT/common/source/F2837xD_EPwm.c</locationURI>
 		</link>
 		<link>
 			<name>F2837xD_EQep.c</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/support/common/source/F2837xD_EQep.c</locationURI>
+			<locationURI>DEVICE_SUPPORT/common/source/F2837xD_EQep.c</locationURI>
 		</link>
 		<link>
 			<name>F2837xD_GlobalVariableDefs.c</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/support/headers/source/F2837xD_GlobalVariableDefs.c</locationURI>
+			<locationURI>DEVICE_SUPPORT/headers/source/F2837xD_GlobalVariableDefs.c</locationURI>
 		</link>
 		<link>
 			<name>F2837xD_Gpio.c</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/support/common/source/F2837xD_Gpio.c</locationURI>
+			<locationURI>DEVICE_SUPPORT/common/source/F2837xD_Gpio.c</locationURI>
 		</link>
 		<link>
 			<name>F2837xD_Headers_nonBIOS_cpu1.cmd</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/support/headers/cmd/F2837xD_Headers_nonBIOS_cpu1.cmd</locationURI>
+			<locationURI>DEVICE_SUPPORT/headers/cmd/F2837xD_Headers_nonBIOS_cpu1.cmd</locationURI>
+		</link>
+		<link>
+			<name>F2837xD_I2C.c</name>
+			<type>1</type>
+			<locationURI>DEVICE_SUPPORT/common/source/F2837xD_I2C.c</locationURI>
 		</link>
 		<link>
 			<name>F2837xD_PieCtrl.c</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/support/common/source/F2837xD_PieCtrl.c</locationURI>
+			<locationURI>DEVICE_SUPPORT/common/source/F2837xD_PieCtrl.c</locationURI>
 		</link>
 		<link>
 			<name>F2837xD_PieVect.c</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/support/common/source/F2837xD_PieVect.c</locationURI>
+			<locationURI>DEVICE_SUPPORT/common/source/F2837xD_PieVect.c</locationURI>
 		</link>
 		<link>
 			<name>F2837xD_SysCtrl.c</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/support/common/source/F2837xD_SysCtrl.c</locationURI>
+			<locationURI>DEVICE_SUPPORT/common/source/F2837xD_SysCtrl.c</locationURI>
 		</link>
 		<link>
 			<name>F2837xD_usDelay.asm</name>
 			<type>1</type>
-			<locationURI>WORKSPACE_LOC/support/common/source/F2837xD_usDelay.asm</locationURI>
+			<locationURI>DEVICE_SUPPORT/common/source/F2837xD_usDelay.asm</locationURI>
 		</link>
 	</linkedResources>
+	<variableList>
+		<variable>
+			<name>DEVICE_SUPPORT</name>
+			<value>file:/C:/ti/c2000/C2000Ware_3_03_00_00/device_support/f2837xd</value>
+		</variable>
+		<variable>
+			<name>FPU_DSP_LIB_ROOT</name>
+			<value>file:/C:/ti/c2000/C2000Ware_3_03_00_00/libraries/dsp/FPU/c28</value>
+		</variable>
+	</variableList>
 </projectDescription>

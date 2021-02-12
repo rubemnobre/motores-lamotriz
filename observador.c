@@ -4,6 +4,7 @@
  * Laboratório de Sistemas Motrizes
  */
 
+
 #include "params.h"
 #define DPI 6.28318530717958647692
 
