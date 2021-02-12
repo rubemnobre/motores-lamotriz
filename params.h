@@ -1,8 +1,6 @@
 /*
  * params.h
  *
- *  Created on: 10 de fev de 2021
- *      Author: rubem
  */
 
 #ifndef PARAMS_H_
@@ -27,5 +25,23 @@
 #define Tr 0.011939615     // constante de tempo rotórica (Lr/Rr)
 #define fpb_a 800          // parâmetro para FPB
 #define fpb_b -792         // parâmetro para FPB (-0.99*a)
+
+
+// Definicoes para o observador SMO
+#define Pn   180        // Potência nominal (0.25 cv)
+#define Vn   380        // Tensão de linha da rede elétrica
+#define fn   60         // Frequência nominal da rede elétrica
+#define rend 0.64       // Rendimento
+#define fp   0.65       // Fator de Potência
+#define Sn   432.69231  // Pn/(rend*fp)
+
+#define H 0.00045       // Momento de inércia
+#define F 0.0001        // Coeficiente de atrito
+
+#define k2 2.764830516
+#define k1 98.37266975
+#define gamma 2.341101701
+#define gamma1 0.01
+#define gamma2 0.01
 
 #endif /* PARAMS_H_ */
