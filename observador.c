@@ -4,7 +4,7 @@
  * Laboratório de Sistemas Motrizes
  */
 
-
+#include<fpu32/fpu_vector.h>
 #include "params.h"
 #define DPI 6.28318530717958647692
 
@@ -109,4 +109,99 @@ float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
     // Saída do observador
     wr = wr/D;
     return wr;
+}
+
+float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in){ // Observador de fluxo rotórico e de velocidade filtro de Kalman estendido
+    // Transformação de clarke de v
+    float va = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
+    float vb = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
+
+    // Transformação de clarke de i
+    float ia = (2.0/3.0)*(ia_in - 0.5*ib_in -0.5*ic_in);
+    float ib = (2.0/3.0)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
+
+    float uk[2][1] = { {va},
+                       {vb} };
+
+    float yk[2][1] = {
+       {ia},
+       {ib},
+    };
+
+    float Q[5][5] = {
+        {1e-6,    0,    0,    0,    0},
+        {   0, 1e-6,    0,    0,    0},
+        {   0,    0, 1e-6,    0,    0},
+        {   0,    0,    0, 1e-6,    0},
+        {   0,    0,    0,    0, 1e-3},
+    };
+
+    /*
+    R = 2*eye(2);
+
+    // Iniciando variáveis
+    if isempty(cont)
+    Ptil = 1e6*eye(5);Phat = 1e6*eye(5);  xktil = 1*ones(5,1); xkhat = 0*ones(5,1);
+    wrf =0; angk1 =0; angk2=0;
+    end
+
+
+    omega1 = p*xkhat(5);  // variável para atualizar matriz A'
+
+    // Matriz A'
+    Alinha = [(1 - Ts/Tlinha)         0           ((Ts*Lm)/(sigma*Ls*Lr*Tr))    ((omega1*Ts*Lm)/(sigma*Ls*Lr)) 0;
+                    0           (1 - Ts/Tlinha) ((-omega1*Ts*Lm)/(sigma*Ls*Lr)) ((Ts*Lm)/(sigma*Ls*Lr*Tr))     0;
+              (Ts*Lm/Tr)              0              (1 - Ts/Tr)                       -Ts*omega1              0;
+                    0           (Ts*Lm/Tr)           Ts*omega1                          (1 - Ts/Tr)            0;
+                    0                  0                   0                                0                  1];
+
+    // Matriz B'
+    Blinha = [(Ts/(sigma*Ls))         0;
+                   0            (Ts/(sigma*Ls));
+                   0                  0;
+                   0                  0;
+                   0                  0];
+
+    // Matriz H
+    Hk = [1 0 0 0 0;
+          0 1 0 0 0];
+
+    // ============== Filtro de Kalman estendido ===================================================================
+
+    // 1) variáveis de estado
+    xktil = Alinha*xkhat + Blinha*uk;
+
+    phi_alpha = xktil(3);
+    phi_beta = xktil(4);
+    omega2 = p*xktil(5);
+
+    // cálculo de G
+    Gk =[(1 - Ts/Tlinha)        0        ((Ts*Lm)/(sigma*Ls*Lr*Tr)) ((omega2*Ts*Lm)/(sigma*Ls*Lr))    ((Ts*Lm*phi_beta)/(sigma*Ls*Lr));
+                0         (1-Ts/Tlinha)  ((-omega2*Ts*Lm)/(sigma*Ls*Lr)) ((Ts*Lm)/(sigma*Ls*Lr*Tr))   ((-Ts*Lm*phi_alpha)/(sigma*Ls*Lr));
+             (Ts*Lm/Tr)         0              (1 - Ts/Tr)                -Ts*omega2                       -Ts*phi_beta;
+                0             Ts*Lm/Tr             Ts*omega2                  (1 - Ts/Tr)                    Ts*phi_alpha;
+                0               0                   0                       0                                 1];
+
+    // 2) covariância do erro
+    Ptil = Gk*Phat*Gk'+Q;
+
+    // 3) ganho de Kalman
+    kk = Ptil*Hk'*inv(Hk*Ptil*Hk'+ R);
+
+    // 4) Atualização dos estados preditos
+    xkhat = xktil + kk*(yk - Hk*xktil);
+
+    // 5) Atualização da covariância do erro
+    Phat = (eye(5) - kk*Hk)*Ptil;
+
+    // Saída estimada
+    yhat = Hk*xkhat;
+
+    trP = trace(Phat); // Traço da matriz de covariância
+    phia = xkhat(3);
+    phib = xkhat(4);
+    w =  xktil(5);
+    */
+    float w = 0;
+    return w;
 }

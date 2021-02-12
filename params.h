@@ -8,13 +8,14 @@
 
 //Parâmetros da máquina
 
-#define Rs 35.58
-#define Rr 87.44
+#define Rs  35.58
+#define Rr  87.44
 #define Lls 0.16
 #define Llr 0.16
-#define Ls 1.044 //Lls +Lm
-#define Lr 1.044 //Llr +Lm
-#define Lm 0.884
+#define Ls  1.044 //Lls +Lm
+#define Lr  1.044 //Llr +Lm
+#define Lm  0.884
+#define Rsr 98.27222427
 
 #define p 2 // pares de polos
 
@@ -43,5 +44,7 @@
 #define gamma 2.341101701
 #define gamma1 0.01
 #define gamma2 0.01
+
+#define Tlinha 0.003680448
 
 #endif /* PARAMS_H_ */
