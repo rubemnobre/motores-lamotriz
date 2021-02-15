@@ -68,7 +68,7 @@ float Velo_aux = 0; //Variável auxiliar para controle de velocidade.
 float wsl=0;  //Velocidade de escorregamento do rotor.
 float w_tot =0; //Velocidade elétrica do rotor em rad/s.
 float w_avg =0; //Velocidade angular depois do filtro.
-float ref_Velo = 600; //Referência de velocidade para o controle do motor.
+float ref_Velo = 800; //Referência de velocidade para o controle do motor.
 unsigned int ref_Velo_AD =0; //Referência digital de velocidade.
 unsigned int ref = 1;   //Escolha da referência de velocidade.
 float ref_Velo1 =0; //Referência de velocidade para o controle do motor.
@@ -92,6 +92,7 @@ __interrupt void adca1_isr(void);
 __interrupt void epwm1_isr(void);
 __interrupt void epwm2_isr(void);
 __interrupt void epwm3_isr(void);
+__interrupt void timer2_isr(void);
 float ref_MRAS(float, float, float, float, float, float);
 // MAIN
 void main(void){
@@ -122,7 +123,7 @@ void main(void){
 
     //CHAVE CONTROLADOR.
     GpioCtrlRegs.GPAMUX1.bit.GPIO14 = 0;
-    GpioCtrlRegs.GPADIR.bit.GPIO14 = 1;
+    GpioCtrlRegs.GPADIR.bit.GPIO14 = 0;
 
     //MUDA_REFERÊNCIA.
     GpioCtrlRegs.GPAMUX1.bit.GPIO15 = 0;
@@ -137,6 +138,7 @@ void main(void){
     CpuSysRegs.PCLKCR2.bit.EPWM1=1;
     CpuSysRegs.PCLKCR2.bit.EPWM2=1;
     CpuSysRegs.PCLKCR2.bit.EPWM3=1;
+    CpuSysRegs.PCLKCR0.bit.CPUTIMER0 = 1;
 
     // Step 3. Clear all interrupts and initialize PIE vector table:
     // Disable CPU interrupts
@@ -154,6 +156,8 @@ void main(void){
     // AS INTERRUPÇÕES QUE SÃO USADAS SÃO REMAPEADAS.
     EALLOW;
     PieVectTable.ADCA1_INT = &adca1_isr;
+
+    PieVectTable.TIMER0_INT = &timer2_isr;
 
     PieVectTable.EPWM1_INT = &epwm1_isr;
     PieVectTable.EPWM2_INT = &epwm2_isr;
@@ -179,6 +183,7 @@ void main(void){
     PieCtrlRegs.PIEIER3.bit.INTx1 = 1;
     PieCtrlRegs.PIEIER3.bit.INTx2 = 1;
     PieCtrlRegs.PIEIER3.bit.INTx3 = 1;
+    PieCtrlRegs.PIEIER1.bit.INTx7 = 1;
     // Enable global Interrupts and higher priority real-time debug events:
     EINT;  // Enable Global interrupt INTM
     ERTM;  // Enable Global realtime interrupt DBGM
@@ -333,7 +338,7 @@ __interrupt void epwm1_isr(){
         EPwm1Regs.ETSEL.bit.INTSEL = 0b100;
     }
     EPwm1Regs.ETCLR.bit.INT = 1;
-    PieCtrlRegs.PIEACK.all = PIEACK_GROUP3;
+    PieCtrlRegs.PIEACK.all |= PIEACK_GROUP3;
 }
 
 int epwm2_high = 0;
@@ -348,7 +353,7 @@ __interrupt void epwm2_isr(){
         EPwm2Regs.ETSEL.bit.INTSEL = 0b100;
     }
     EPwm2Regs.ETCLR.bit.INT = 1;
-    PieCtrlRegs.PIEACK.all = PIEACK_GROUP3;
+    PieCtrlRegs.PIEACK.all |= PIEACK_GROUP3;
 }
 
 int epwm3_high = 0;
@@ -363,7 +368,7 @@ __interrupt void epwm3_isr(){
         EPwm3Regs.ETSEL.bit.INTSEL = 0b100;
     }
     EPwm3Regs.ETCLR.bit.INT = 1;
-    PieCtrlRegs.PIEACK.all = PIEACK_GROUP3;
+    PieCtrlRegs.PIEACK.all |= PIEACK_GROUP3;
 }
 
 
@@ -402,6 +407,12 @@ void SetupTimers(void){
     InitCpuTimers();
     ConfigCpuTimer(&CpuTimer1, 200, 80); //200MHz, 80us
     CpuTimer1Regs.TCR.all = 0x4000;
+
+    ConfigCpuTimer(&CpuTimer0, 200, 1.6); //200MHz, 80us
+    CpuTimer0Regs.TCR.all = 0x4000;
+    CpuTimer0Regs.TCR.bit.TIE = 1;
+    CpuTimer0Regs.TCR.bit.TIF = 1;
+    PieCtrlRegs.PIEACK.all |= PIEACK_GROUP1;
 }
 
 //CONFIGURAÇÃO DO ADC.
@@ -492,13 +503,22 @@ void ConfigureDAC(){
     EDIS;
 }
 
-int cont_controle = 0;
+__interrupt void timer2_isr(){
+    GpioDataRegs.GPADAT.bit.GPIO15 = 1;
+    DELAY_US(1);
+    GpioDataRegs.GPADAT.bit.GPIO15 = 0;
 
+    CpuTimer0Regs.TCR.bit.TIF = 1;
+    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
+}
+
+int cont_controle = 0;
+unsigned int tc = 0;
 __interrupt void adca1_isr(void){
-    if(cont_zero < 5){
-        Ia_med0 += AdccResultRegs.ADCRESULT2/5;
-        Ib_med0 += AdcaResultRegs.ADCRESULT0/5;
-        Ic_med0 += AdcdResultRegs.ADCRESULT3/5;
+    if(cont_zero < 50){
+        Ia_med0 += AdccResultRegs.ADCRESULT2/50.0;
+        Ib_med0 += AdcbResultRegs.ADCRESULT1/50.0;
+        Ic_med0 += AdcdResultRegs.ADCRESULT3/50.0;
         cont_zero++;
     }
 
@@ -547,7 +567,7 @@ __interrupt void adca1_isr(void){
     Rotor_Posicao_Ant = Rotor_Posicao;
     Velo_ant1 = Velo_avg;
 
-    refmras = ref_MRAS(va_obs, vb_obs, vc_obs, ia, ib, ic);
+    //refmras = ref_MRAS(va_obs, vb_obs, vc_obs, ia, ib, ic);
 
     //int ref_dac = (int)(refmras*2048);
     //DacaRegs.DACVALS.all = ref_dac;
@@ -559,11 +579,11 @@ __interrupt void adca1_isr(void){
     //DacbRegs.DACVALS.all = ib_obs*1024/2 + 1024;
 
     //INÍCIO DA MALHA DE CONTROLE.
-    if (cont_zero > 4){
+    if (cont_zero > 49){
         if (pin12==1){
             //LEITURA DO CONVERSOR AD.
             Ic_med = AdcdResultRegs.ADCRESULT3;
-            Ib_med = AdcaResultRegs.ADCRESULT0;
+            Ib_med = AdcbResultRegs.ADCRESULT1;
             Ia_med = AdccResultRegs.ADCRESULT2;
 
             //Ganho do ADC * Ganho do sensor;
