@@ -13,27 +13,27 @@ float xka1 = 0, xkb1 = 0, dphia_k1 = 0, dphib_k1 = 0, prodk1 = 0, wrk1 = 0, wrf 
 
 float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in){
     // Transformação de clarke de v
-    float va = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
-    float vb = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
+    float valpha = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
+    float vbeta = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
 
     // Transformação de clarke de i
-    float ia = (2.0/3.0)*(ia_in - 0.5*ib_in -0.5*ic_in);
-    float ib = (2.0/3.0)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
+    float ialpha = (2.0/3.0)*(ia_in - 0.5*ib_in -0.5*ic_in);
+    float ibeta = (2.0/3.0)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
 
     // Variável auxiliar para integração
-    float xka = (va - Rs*ia);
-    float xkb = (vb - Rs*ib);
+    float xka = (valpha - Rs*ialpha);
+    float xkb = (vbeta - Rs*ibeta);
 
     // Integração
     aux_alpha = aux_alpha + (Ts/2)*xka + (Ts/2)*xka1;
     aux_beta  = aux_beta  + (Ts/2)*xkb + (Ts/2)*xkb1;
 
-    float phir_alpha_st = (Lr/Lm)*(aux_alpha - sigma*Ls*ia );
-    float phir_beta_st  = (Lr/Lm)*(aux_beta  - sigma*Ls*ib );
+    float phir_alpha_st = (Lr/Lm)*(aux_alpha - sigma*Ls*ialpha );
+    float phir_beta_st  = (Lr/Lm)*(aux_beta  - sigma*Ls*ibeta );
 
     // Modelo Adaptativo
-    float dphir_alpha_rt = -(1/Tr)*phir_alpha_rt - wr*phir_beta_rt  + (Lm/Tr)*ia;
-    float dphir_beta_rt  = -(1/Tr)*phir_beta_rt  + wr*phir_alpha_rt + (Lm/Tr)*ib;
+    float dphir_alpha_rt = -(1/Tr)*phir_alpha_rt - wr*phir_beta_rt  + (Lm/Tr)*ialpha;
+    float dphir_beta_rt  = -(1/Tr)*phir_beta_rt  + wr*phir_alpha_rt + (Lm/Tr)*ibeta;
     phir_alpha_rt  = phir_alpha_rt + (Ts/2)*dphir_alpha_rt + (Ts/2)*dphia_k1;
     phir_beta_rt   = phir_beta_rt  + (Ts/2)*dphir_beta_rt  + (Ts/2)*dphib_k1;
 
@@ -113,18 +113,18 @@ float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 
 float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in){ // Observador de fluxo rotórico e de velocidade filtro de Kalman estendido
     // Transformação de clarke de v
-    float va = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
-    float vb = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
+    float valpha = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
+    float vbeta = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
 
     // Transformação de clarke de i
-    float ia = (2.0/3.0)*(ia_in - 0.5*ib_in -0.5*ic_in);
+    float ialpha = (2.0/3.0)*(ia_in - 0.5*ib_in -0.5*ic_in);
     float ib = (2.0/3.0)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
 
-    float uk[2][1] = { {va},
-                       {vb} };
+    float uk[2][1] = { {valpha},
+                       {vbeta} };
 
     float yk[2][1] = {
-       {ia},
+       {ialpha},
        {ib},
     };
 
