@@ -97,7 +97,7 @@ __interrupt void epwm1_isr(void);
 __interrupt void epwm2_isr(void);
 __interrupt void epwm3_isr(void);
 __interrupt void timer0_isr(void);
-float ref_MRAS(float, float, float, float, float, float);
+float ref_EKF(float, float, float, float, float, float);
 // MAIN
 void main(void){
     //INICIALIZAÇÃO DO CONTROLE DO SISTEMA.
@@ -821,7 +821,7 @@ __interrupt void adca1_isr(void){
     ib = (Ib_med - Ib_med0)*0.0008056640625*1.33;
     ia = (Ia_med - Ia_med0)*0.0008056640625*1.33;
 
-    refmras = ref_MRAS(va, vb, vc, ia, ib, ic);
+    //refmras = ref_EKF(va, vb, vc, ia, ib, ic);
 
     AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear INT1 flag
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
