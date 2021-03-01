@@ -47,4 +47,7 @@
 
 #define Tlinha 0.003680448
 
+#define sig 0.283025792340101
+#define Kr 0.846743295019157
+
 #endif /* PARAMS_H_ */

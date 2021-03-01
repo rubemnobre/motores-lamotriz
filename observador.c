@@ -5,8 +5,11 @@
  */
 
 #include<fpu32/fpu_vector.h>
+#include "F28x_Project.h"
 #include "params.h"
 #define DPI 6.28318530717958647692
+
+#ifdef MRAS
 
 // Declarações dos anteriores para ref_mras
 float xka1 = 0, xkb1 = 0, dphia_k1 = 0, dphib_k1 = 0, prodk1 = 0, wrk1 = 0, wrf = 0, wr = 0, aux_alpha = 0, aux_beta = 0, phir_alpha_rt = 0, phir_beta_rt = 0;
@@ -30,6 +33,9 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
 
     float phir_alpha_st = (Lr/Lm)*(aux_alpha - sigma*Ls*ialpha );
     float phir_beta_st  = (Lr/Lm)*(aux_beta  - sigma*Ls*ibeta );
+
+//    DacaRegs.DACVALS.all = phir_alpha_st * 2048.0 / 100.0;
+//    DacbRegs.DACVALS.all = phir_beta_st * 2048.0 / 100.0;
 
     // Modelo Adaptativo
     float dphir_alpha_rt = -(1/Tr)*phir_alpha_rt - wr*phir_beta_rt  + (Lm/Tr)*ialpha;
@@ -56,6 +62,9 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
     return (60.0/DPI)*(1.0/p)*wr;  // conversão de rad/s para rpm
 }
 
+#endif
+
+#ifdef SMO
 
 // Declaracoes para o observador SMO
 float dialpha_est = 0, dibeta_est = 0, ialpha_est = 0, ibeta_est = 0, qalpha = 0, qbeta = 0, salpha = 1, sbeta = 1, salphak1 = 0, sbetak1 = 0, dflux_est_alpha = 0, dflux_est_beta= 0, flux_est_alpha= 0, flux_est_beta= 0;
@@ -111,97 +120,247 @@ float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
     return wr;
 }
 
+#endif
+
+#ifdef EKF
+
+int init = 1;
+
+static float Phat[25];
+static float xkhat[5];
+
 float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in){ // Observador de fluxo rotórico e de velocidade filtro de Kalman estendido
-    // Transformação de clarke de v
-    float valpha = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
-    float vbeta = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
+    if(init){
+        int i;
+        static const float fv2[25] = { 1e6, 0, 0, 0, 0,
+                                       0, 1e6, 0, 0, 0,
+                                       0, 0, 1e6, 0, 0,
+                                       0, 0, 0, 1e6, 0,
+                                       0, 0, 0, 0, 1e6};
 
-    // Transformação de clarke de i
-    float ialpha = (2.0/3.0)*(ia_in - 0.5*ib_in -0.5*ic_in);
-    float ib = (2.0/3.0)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
+        for (i = 0; i < 25; i++){
+            Phat[i] = fv2[i];
+        }
 
-    float uk[2][1] = { {valpha},
-                       {vbeta} };
+        for (i = 0; i < 5; i++){
+            xkhat[i] = 0;
+        }
+        init = 0;
+    }
 
-    float yk[2][1] = {
-       {ialpha},
-       {ib},
-    };
+    // Transformação de eixos de referência (invariante em amplitude)
+    float valpha = (2/3)*(va_in - 0.5*vb_in - 0.5*vc_in);
+    float vbeta  = -(2/3)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
 
-    float Q[5][5] = {
-        {1e-6,    0,    0,    0,    0},
-        {   0, 1e-6,    0,    0,    0},
-        {   0,    0, 1e-6,    0,    0},
-        {   0,    0,    0, 1e-6,    0},
-        {   0,    0,    0,    0, 1e-3},
-    };
+    float ialpha = (2/3)*(ia_in -0.5*ib_in - 0.5*ic_in);
+    float ibeta  = -(2/3)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
 
-    /*
-    R = 2*eye(2);
+    float omega1;
+    float Gk[25];
+    int r1;
+    float b_va[2];
+    static const int iv0[5] = { 0, 0, 0, 0, 1 };
 
-    // Iniciando variáveis
-    if isempty(cont)
-    Ptil = 1e6*eye(5);Phat = 1e6*eye(5);  xktil = 1*ones(5,1); xkhat = 0*ones(5,1);
-    wrf =0; angk1 =0; angk2=0;
-    end
+    float xktil[5];
+    float fv0[5];
+    int r2;
+    float b_Gk[25];
+    float a[5];
+    static const float b_a[10] = { 5.64055972E-6, 0, 0, 0, 0,
+                                   0, 5.64055972E-6, 0, 0, 0 };
 
+    float c[4];
+    int k;
+    float kk[10];
+    float b_c[10];
+    float a22;
+    static const int c_a[10] = { 1, 0, 0, 1, 0,
+                                 0, 0, 0, 0, 0 };
 
-    omega1 = p*xkhat(5);  // variável para atualizar matriz A'
+    float Ptil[25];
+    static const float fv1[25] = { 1E-6, 0, 0, 0, 0,
+                                   0, 1E-6, 0, 0, 0,
+                                   0, 0, 1E-6, 0, 0,
+                                   0, 0, 0, 1E-6, 0,
+                                   0, 0, 0, 0, 1e-3 };
 
-    // Matriz A'
-    Alinha = [(1 - Ts/Tlinha)         0           ((Ts*Lm)/(sigma*Ls*Lr*Tr))    ((omega1*Ts*Lm)/(sigma*Ls*Lr)) 0;
-                    0           (1 - Ts/Tlinha) ((-omega1*Ts*Lm)/(sigma*Ls*Lr)) ((Ts*Lm)/(sigma*Ls*Lr*Tr))     0;
-              (Ts*Lm/Tr)              0              (1 - Ts/Tr)                       -Ts*omega1              0;
-                    0           (Ts*Lm/Tr)           Ts*omega1                          (1 - Ts/Tr)            0;
-                    0                  0                   0                                0                  1];
+    static const int iv1[4] = { 2, 0, 0, 2 };
 
-    // Matriz B'
-    Blinha = [(Ts/(sigma*Ls))         0;
-                   0            (Ts/(sigma*Ls));
-                   0                  0;
-                   0                  0;
-                   0                  0];
+    static const int b[10] = { 1, 0, 0, 0, 0,
+                               0, 1, 0, 0, 0};
 
-    // Matriz H
-    Hk = [1 0 0 0 0;
-          0 1 0 0 0];
+    float d_a[2];
+    float b_ia[2];
 
-    // ============== Filtro de Kalman estendido ===================================================================
+    static const int iv2[25] = { 1, 0, 0, 0, 0,
+                                 0, 1, 0, 0, 0,
+                                 0, 0, 1, 0, 0,
+                                 0, 0, 0, 1, 0,
+                                 0, 0, 0, 0, 1};
 
-    // 1) variáveis de estado
-    xktil = Alinha*xkhat + Blinha*uk;
+    omega1 = 2 * xkhat[4];
 
-    phi_alpha = xktil(3);
-    phi_beta = xktil(4);
-    omega2 = p*xktil(5);
+    Gk[0] = 0.999445677;
+    Gk[5] = 0;
+    Gk[10] = 0.00040002176;
+    Gk[15] = omega1 * 1.66666666E-6 * 0.884 / 0.308480024;
+    Gk[20] = 0;
+    Gk[1] = 0;
+    Gk[6] = 0.999445677;
+    Gk[11] = -omega1 * 1.66666666E-6 * 0.884 / 0.308480024;
+    Gk[16] = 0.00040002176;
+    Gk[21] = 0;
+    Gk[2] = 0.000123398713;
+    Gk[7] = 0;
+    Gk[12] = 0.999860406;
+    Gk[17] = -1.66666666E-6 * omega1;
+    Gk[22] = 0;
+    Gk[3] = 0;
+    Gk[8] = 0.000123398713;
+    Gk[13] = 1.66666666E-6 * omega1;
+    Gk[18] = 0.999860406;
+    Gk[23] = 0;
 
-    // cálculo de G
-    Gk =[(1 - Ts/Tlinha)        0        ((Ts*Lm)/(sigma*Ls*Lr*Tr)) ((omega2*Ts*Lm)/(sigma*Ls*Lr))    ((Ts*Lm*phi_beta)/(sigma*Ls*Lr));
-                0         (1-Ts/Tlinha)  ((-omega2*Ts*Lm)/(sigma*Ls*Lr)) ((Ts*Lm)/(sigma*Ls*Lr*Tr))   ((-Ts*Lm*phi_alpha)/(sigma*Ls*Lr));
-             (Ts*Lm/Tr)         0              (1 - Ts/Tr)                -Ts*omega2                       -Ts*phi_beta;
-                0             Ts*Lm/Tr             Ts*omega2                  (1 - Ts/Tr)                    Ts*phi_alpha;
-                0               0                   0                       0                                 1];
+    for (r1 = 0; r1 < 5; r1++) {
+        Gk[4 + 5 * r1] = iv0[r1];
+    }
 
-    // 2) covariância do erro
-    Ptil = Gk*Phat*Gk'+Q;
+    b_va[0] = valpha;
+    b_va[1] = vbeta;
+    for (r1 = 0; r1 < 5; r1++) {
+        fv0[r1] = 0;
+        for (r2 = 0; r2 < 5; r2++) {
+            fv0[r1] += Gk[r1 + 5 * r2] * xkhat[r2];
+        }
+        a[r1] = 0;
+        for (r2 = 0; r2 < 2; r2++) {
+            a[r1] += b_a[r1 + 5 * r2] * b_va[r2];
+        }
+        xktil[r1] = fv0[r1] + a[r1];
+        b_Gk[4 + 5 * r1] = iv0[r1];
+    }
 
-    // 3) ganho de Kalman
-    kk = Ptil*Hk'*inv(Hk*Ptil*Hk'+ R);
+    omega1 = 2 * xktil[4];
 
-    // 4) Atualização dos estados preditos
-    xkhat = xktil + kk*(yk - Hk*xktil);
+    /*  cálculo de G */
+    b_Gk[0] = 0.999445677;
+    b_Gk[5] = 0;
+    b_Gk[10] = 0.00040002176;
+    b_Gk[15] = omega1 * 1.66666666E-6 * 0.884 / 0.308480024;
+    b_Gk[20] = 1.47333333E-6 * xktil[3] / 0.308480024;
+    b_Gk[1] = 0;
+    b_Gk[6] = 0.999445677;
+    b_Gk[11] = -omega1 * 1.66666666E-6 * 0.884 / 0.308480024;
+    b_Gk[16] = 0.00040002176;
+    b_Gk[21] = -1.47333333E-6 * xktil[2] / 0.308480024;
+    b_Gk[2] = 0.000123398713;
+    b_Gk[7] = 0;
+    b_Gk[12] = 0.999860406;
+    b_Gk[17] = -1.66666666E-6 * omega1;
+    b_Gk[22] = -1.66666666E-6 * xktil[3];
+    b_Gk[3] = 0;
+    b_Gk[8] = 0.000123398713;
+    b_Gk[13] = 1.66666666E-6 * omega1;
+    b_Gk[18] = 0.999860406;
+    b_Gk[23] = 1.66666666E-6 * xktil[2];
 
-    // 5) Atualização da covariância do erro
-    Phat = (eye(5) - kk*Hk)*Ptil;
+    /*  2) covariância do erro */
+    /*  3) ganho de Kalman */
+    for (r1 = 0; r1 < 5; r1++) {
+        for (r2 = 0; r2 < 5; r2++) {
+            Gk[r1 + 5 * r2] = 0;
+            for (k = 0; k < 5; k++) {
+                Gk[r1 + 5 * r2] += b_Gk[r1 + 5 * k] * Phat[k + 5 * r2];
+            }
+        }
 
-    // Saída estimada
-    yhat = Hk*xkhat;
+        for (r2 = 0; r2 < 5; r2++) {
+            omega1 = 0;
+            for (k = 0; k < 5; k++) {
+                omega1 += Gk[r1 + 5 * k] * b_Gk[r2 + 5 * k];
+            }
+            Ptil[r1 + 5 * r2] = omega1 + fv1[r1 + 5 * r2];
+        }
 
-    trP = trace(Phat); // Traço da matriz de covariância
-    phia = xkhat(3);
-    phib = xkhat(4);
-    w =  xktil(5);
-    */
-    float w = 0;
-    return w;
+        for (r2 = 0; r2 < 2; r2++) {
+            b_c[r1 + 5 * r2] = 0;
+            for (k = 0; k < 5; k++) {
+                b_c[r1 + 5 * r2] += Ptil[r1 + 5 * k] * (float)b[k + 5 * r2];
+            }
+        }
+    }
+
+    for (r1 = 0; r1 < 2; r1++) {
+        for (r2 = 0; r2 < 5; r2++) {
+            kk[r1 + (r2 << 1U)] = 0;
+            for (k = 0; k < 5; k++) {
+                kk[r1 + (r2 << 1U)] += (float)c_a[r1 + (k << 1U)] * Ptil[k + 5 * r2];
+            }
+        }
+
+        for (r2 = 0; r2 < 2; r2++) {
+            omega1 = 0;
+            for (k = 0; k < 5; k++) {
+                omega1 += kk[r1 + (k << 1U)] * (float)b[k + 5 * r2];
+            }
+
+            c[r1 + (r2 << 1U)] = omega1 + (float)iv1[r1 + (r2 << 1U)];
+        }
+    }
+
+    if ((float)fabs(c[1]) > (float)fabs(c[0])){
+        r1 = 1;
+        r2 = 0;
+    }else{
+        r1 = 0;
+        r2 = 1;
+    }
+
+    omega1 = c[r2] / c[r1];
+    a22 = c[2 + r2] - omega1 * c[2 + r1];
+    for (k = 0; k < 5; k++) {
+        kk[k + 5 * r1] = b_c[k] / c[r1];
+        kk[k + 5 * r2] = (b_c[5 + k] - kk[k + 5 * r1] * c[2 + r1]) / a22;
+        kk[k + 5 * r1] -= kk[k + 5 * r2] * omega1;
+    }
+
+    /*  4) Atualização dos estados preditos */
+    b_va[0] = ialpha;
+    b_va[1] = ibeta;
+    for (r1 = 0; r1 < 2; r1++) {
+        d_a[r1] = 0;
+        for (r2 = 0; r2 < 5; r2++) {
+            d_a[r1] += (float)c_a[r1 + (r2 << 1U)] * xktil[r2];
+        }
+
+        b_ia[r1] = b_va[r1] - d_a[r1];
+    }
+
+    /*  5) Atualização da covariância do erro */
+    for (r1 = 0; r1 < 5; r1++) {
+        omega1 = 0;
+        for (r2 = 0; r2 < 2; r2++) {
+            omega1 += kk[r1 + 5 * r2] * b_ia[r2];
+        }
+
+        xkhat[r1] = xktil[r1] + omega1;
+        for (r2 = 0; r2 < 5; r2++) {
+            omega1 = 0;
+            for (k = 0; k < 2; k++) {
+                omega1 += kk[r1 + 5 * k] * (float)c_a[k + (r2 << 1U)];
+            }
+
+            Gk[r1 + 5 * r2] = (float)iv2[r1 + 5 * r2] - omega1;
+        }
+
+        for (r2 = 0; r2 < 5; r2++) {
+            Phat[r1 + 5 * r2] = 0;
+            for (k = 0; k < 5; k++) {
+                Phat[r1 + 5 * r2] += Gk[r1 + 5 * k] * Ptil[k + 5 * r2];
+            }
+        }
+    }
+    return xktil[4];
 }
+
+#endif

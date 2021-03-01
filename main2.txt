@@ -50,7 +50,7 @@ float Va =0; //tensões de saída do modulador.
 float Vb =0;
 float Vc =0;
 float theta_rad; // Ângulo calculado no integrador.
-float ref_kd =0; //Valores de referência para os eixos d e q.
+float ref_kd =0.4; //Valores de referência para os eixos d e q.
 float ref_kq =0;
 unsigned int ref_kd_AD =0; //Valores de referência para os eixos d e q em valores digitais.
 unsigned int ref_kq_AD =0;
@@ -83,27 +83,48 @@ float erro_Velo_ant1 =0; //Valores passados para o erro da malha de velocidade.
 float Velo_ant1 =0;//Valores passados para a velociddae do motor.
 
 // Variáveis do controle de fluxo
-//float U_alp_int = 0;
-//float U_bet_int = 0;
-//float i_alp_int = 0;
-//float i_bet_int = 0;
-//float flux_a_k2 = 0;
-//float flux_a_k1 = 0;
-//float flux_b_k2 = 0;
-//float flux_b_k1 = 0;
-//float flux_a_cf_k2 = 0;
-//float flux_a_cf_k1 = 0;
-//float flux_b_cf_k2 = 0;
-//float flux_b_cf_k1 = 0;
-//float e_a_int_k1 = 0;
-//float e_a_k1 = 0;
-//float e_b_int_k1 = 0;
-//float e_b_k1 = 0;
-//float u_a = 0, u_b = 0;
-//float flux_r = 0;
-//float e_flux_ant = 0;
-//float ref_kd_ant = 0;
-float V_a = 0, V_b = 0, V_c = 0;
+// variaveis Andresa
+float auxta, auxtb;
+
+// Transformadas
+float raiz32 = 0.866025403784439;
+
+// Referência de tensão no eixo alpha-beta
+float Valp = 0, Vbet = 0;
+// Correntes medidas no eixo alpha-beta
+float Ialp, Ibet;
+
+
+float V_a = 0, V_b=0, V_c = 0;
+
+// Variáveis para estimação de fluxo de rotor
+float  U_alp_int = 0, U_alp_int_k1 =0;
+float U_bet_int = 0, U_bet_int_k1 =0;
+float  i_alp_int=0, i_alp_int_k1=0;
+float  i_bet_int=0, i_bet_int_k1=0;
+float delta_V_a = 0;
+float flux_a = 0;
+float ref_a = 0;
+float delta_V_b = 0;
+float flux_b = 0;
+float ref_b= 0;
+
+float flux_a_cf = 0,  flux_b_cf = 0;
+float flux_a_k1 = 0, flux_b_k1 = 0;
+float flux_a_k2=0, flux_b_k2=0, flux_a_cf_k1 = 0,  flux_a_cf_k2 = 0,  flux_b_cf_k1 = 0,  flux_b_cf_k2 = 0;
+float y_a = 0, y_b = 0;
+float e_a = 0, e_b = 0;
+float e_a_k1 = 0, e_b_k1 = 0;
+float e_a_int = 0, e_a_int_k1 = 0;
+float e_b_int = 0, e_b_int_k1 = 0;
+float u_a = 0, u_a_k1 = 0;
+float u_b = 0, u_b_k1 = 0;
+float theta_r= 0;
+float flux_r = 0;
+
+float ref_flux, e_flux = 0, e_flux_ant = 0;
+float ref_kd_ant = 0;
+
 float va_obs = 0, vb_obs = 0, vc_obs = 0, ia_obs = 0, ib_obs = 0, ic_obs = 0, refmras = 0;
 
 // FUNCTIONS
@@ -119,7 +140,6 @@ __interrupt void epwm1_isr(void);
 __interrupt void epwm2_isr(void);
 __interrupt void epwm3_isr(void);
 __interrupt void timer0_isr(void);
-__interrupt void eqep1_isr(void);
 float ref_MRAS(float, float, float, float, float, float);
 // MAIN
 void main(void){
@@ -169,7 +189,6 @@ void main(void){
     CpuSysRegs.PCLKCR2.bit.EPWM3=1;
     CpuSysRegs.PCLKCR0.bit.CPUTIMER0 = 1;
     CpuSysRegs.PCLKCR0.bit.CPUTIMER1 = 1;
-    //CpuSysRegs.PCLKCR4.bit.EQEP1 = 1;
 
     // Step 3. Clear all interrupts and initialize PIE vector table:
     // Disable CPU interrupts
@@ -189,8 +208,6 @@ void main(void){
     PieVectTable.ADCA1_INT = &adca1_isr;
 
     PieVectTable.TIMER0_INT = &timer0_isr;
-
-    PieVectTable.EQEP1_INT = &eqep1_isr;
 
     PieVectTable.EPWM1_INT = &epwm1_isr;
     PieVectTable.EPWM2_INT = &epwm2_isr;
@@ -212,12 +229,11 @@ void main(void){
     EDIS;
 
     // Enable CPU INT3 which is connected to EPWM1-3 INT:
-    IER |= M_INT1 | M_INT3 | M_INT5;
+    IER |= M_INT1 | M_INT3;
     PieCtrlRegs.PIEIER3.bit.INTx1 = 1;
     PieCtrlRegs.PIEIER3.bit.INTx2 = 1;
     PieCtrlRegs.PIEIER3.bit.INTx3 = 1;
     PieCtrlRegs.PIEIER1.bit.INTx7 = 1;
-    PieCtrlRegs.PIEIER5.bit.INTx1 = 1;
     // Enable global Interrupts and higher priority real-time debug events:
     EINT;  // Enable Global interrupt INTM
     ERTM;  // Enable Global realtime interrupt DBGM
@@ -238,8 +254,8 @@ void main(void){
             // va -> ic
             // vb -> vb
             // vc -> ia
-            DacaRegs.DACVALS.all = Velo_ADC;
-            DacbRegs.DACVALS.all = ref_Velo_AD;
+            DacaRegs.DACVALS.all = flux_a_k1 * 2048.0 + 1024;
+            DacbRegs.DACVALS.all = flux_b_k1 * 2048.0 + 1024;
             if(saida==1){
                 break;
             }
@@ -571,49 +587,49 @@ int cont_controle = 0;
 unsigned int tc = 0;
 __interrupt void timer0_isr(){
     theta_atual_ma = ((0.000160)*DPI*20) + theta_ant_ma; // Integrador discreto.
-        theta_ant_ma = theta_atual_ma;
+    theta_ant_ma = theta_atual_ma;
 
-        if(theta_atual_ma > DPI){
-            theta_atual_ma = theta_atual_ma -DPI;
-            theta_ant_ma = theta_atual_ma;// Controle para manter Theta
-        }
-        if(theta_atual_ma < 0){
-            theta_atual_ma = theta_atual_ma +DPI;
-            theta_ant_ma = theta_atual_ma;// Controle para manter Theta
-        }
+    if(theta_atual_ma > DPI){
+        theta_atual_ma = theta_atual_ma -DPI;
+        theta_ant_ma = theta_atual_ma;// Controle para manter Theta
+    }
+    if(theta_atual_ma < 0){
+        theta_atual_ma = theta_atual_ma +DPI;
+        theta_ant_ma = theta_atual_ma;// Controle para manter Theta
+    }
 
-        //LEITURA EQEP -POSIÇÃO.
-        Posicao_ADC  = (int)(EQep1Regs.QPOSCNT);
+    //LEITURA EQEP -POSIÇÃO.
+    Posicao_ADC  = (int)(EQep1Regs.QPOSCNT);
 
-        //POSIÇAO ANGULAR.
-        Rotor_Posicao = (float)(Posicao_ADC*DPI)/(2048);
-        delta_posicao = Rotor_Posicao - Rotor_Posicao_Ant;
+    //POSIÇAO ANGULAR.
+    Rotor_Posicao = (float)(Posicao_ADC*DPI)/(2048);
+    delta_posicao = Rotor_Posicao - Rotor_Posicao_Ant;
 
-        //ROTOR PARADO ??
-        if(delta_posicao ==0||Velo == 0){
-            Velo_aux = Velo;
-        }
+    //ROTOR PARADO ??
+    if(delta_posicao ==0||Velo == 0){
+        Velo_aux = Velo;
+    }
 
-        //VELOCIDADE NEGATIVA??
-        if (delta_posicao <0 || Velo<0){
-            delta_posicao = delta_posicao_1;
-        }
+    //VELOCIDADE NEGATIVA??
+    if (delta_posicao <0 || Velo<0){
+        delta_posicao = delta_posicao_1;
+    }
 
-        //VELOCIDADE POSITIVA.
-        if (delta_posicao>0 || Velo>0){
-            //DERIVADA DISCRETA DA POSIÇÃO = VELOCIDADE.
-            w = (float)((delta_posicao)/(0.000160));
-            Velo = (float)(w*(60/(DPI)));
+    //VELOCIDADE POSITIVA.
+    if (delta_posicao>0 || Velo>0){
+        //DERIVADA DISCRETA DA POSIÇÃO = VELOCIDADE.
+        w = (float)((delta_posicao)/(0.000160));
+        Velo = (float)(w*(60/(DPI)));
 
-            // Filtro passa baixa para f32f
-            Velo_avg = Velo_avg + 0.000160*(Velo - Velo_avg);
-            w_avg = (Velo_avg*DPI)/(60);
+        // Filtro passa baixa para f32f
+        Velo_avg = Velo_avg + 0.000160*(Velo - Velo_avg);
+        w_avg = (Velo_avg*DPI)/(60);
 
-            //Velocidade medida em valores digitais.
-            Velo_ADC = (int)(2.048*Velo_avg);
-        }
-        Rotor_Posicao_Ant = Rotor_Posicao;
-        Velo_ant1 = Velo_avg;
+        //Velocidade medida em valores digitais.
+        Velo_ADC = (int)(2.048*Velo_avg);
+    }
+    Rotor_Posicao_Ant = Rotor_Posicao;
+    Velo_ant1 = Velo_avg;
 
     //refmras = ref_MRAS(va_obs, vb_obs, vc_obs, ia, ib, ic);
     //INÍCIO DA MALHA DE CONTROLE.
@@ -626,6 +642,9 @@ __interrupt void timer0_isr(){
 
         theta_atual = ((160E-006)*w_tot) + theta_ant; // Integrador discreto.
         theta_ant = theta_atual;
+
+//        theta_atual = theta_r;
+//        theta_ant = theta_atual;
 
         if(theta_atual > DPI){
             theta_atual = theta_atual -DPI;
@@ -725,14 +744,14 @@ __interrupt void timer0_isr(){
             cont_velo = 0;
 
             //PI malha de velocidade
-            //double ki = -0.0011;
-            //double kp = 0.0011491;
+            double ki = -0.0011;
+            double kp = 0.0011491;
 
             //double ki = -0.001764;
             //double kp = 0.00196;
 
-            double ki = -0.001764;
-            double kp = 0.00196;
+            //double ki = -0.001764;
+            //double kp = 0.00196;
 
             erro_Velo = ref_Velo - Velo_avg;
             ref_kq = ref_kq_ant + ki*erro_Velo_ant1 + kp*erro_Velo;
@@ -751,62 +770,81 @@ __interrupt void timer0_isr(){
             */
         }
 
-        // Observador de fluxo
-//        float Ialp = 0.666666666666667*( ia -0.5*ib - 0.5* ic);
-//        float Ibet = 0.666666666666667* 0.866025403784439 *(ib - ic);
-//
-//        float Valp = 0.666666666666667*( (V_a) -0.5*V_b - 0.5* V_c);
-//        float Vbet = 0.666666666666667* 0.866025403784439 *(V_b - V_c);
-//
-//        U_alp_int = (160e-6)*Valp + U_alp_int;
-//        i_alp_int = (160e-6)*Ialp*Rs + i_alp_int;
-//
-//        U_bet_int = (160e-6)*Vbet + U_bet_int;
-//        i_bet_int = (160e-6)*Ibet*Rs + i_bet_int;
-//
-//        float delta_V_a = (1/Kr)*( U_alp_int  - i_alp_int+u_a);
-//        float flux_a = delta_V_a  - (sig*(Ls+Lm)/Kr)*Ialp;
-//
-//        float delta_V_b = (1/Kr)*( U_bet_int  - i_bet_int+u_b);
-//        float flux_b = delta_V_b  - (sig*(Ls+Lm)/Kr)*Ibet;
-//
-//        float flux_a_cf = 149.7977312077128* flux_a+ 1.9940435300641*flux_a_k1  - 147.8036876776487* flux_a_k2  -1.994039088505832* flux_a_cf_k1  - 0.994047971622293*flux_a_cf_k2;
-//        float flux_b_cf = 149.7977312077128* flux_b+ 1.9940435300641*flux_b_k1  - 147.8036876776487* flux_b_k2  -1.994039088505832* flux_b_cf_k1  - 0.994047971622293*flux_b_cf_k2;
-//
-//        float e_a = Lm*Ialp - (flux_a_cf + w_avg*Tr*flux_b);
-//        float e_a_int = (80e-6)*(e_a + e_a_k1) + e_a_int_k1;
-//        u_a = 37.094784000000004*( e_a_int +   e_a_int_k1) + u_a;
-//
-//        float e_b = Lm*Ibet - (flux_b_cf - w_avg*Tr*flux_a);
-//        float e_b_int = (80e-6)*(e_b + e_b_k1) + e_b_int_k1;
-//        u_b = 37.094784000000004*( e_b_int +   e_b_int_k1) + u_b;
-//
-//        float theta_r = atan2(flux_b ,flux_a);
-//        flux_r = sqrt(( flux_a*flux_a)+( flux_b*flux_b));
-//
-//        int flux_r_DA = (int)(1365* flux_r); // max = 3.0
-//
-//        flux_a_k2 = flux_a_k1;
-//        flux_a_k1 = flux_a;
-//        flux_b_k2 = flux_b_k1;
-//        flux_b_k1 = flux_b;
-//        flux_a_cf_k2 = flux_a_cf_k1;
-//        flux_a_cf_k1 = flux_a_cf;
-//        flux_b_cf_k2 = flux_b_cf_k1;
-//        flux_b_cf_k1 = flux_b_cf;
-//        e_a_int_k1 = e_a_int;
-//        e_a_k1 = e_a;
-//        e_b_int_k1 = e_b_int;
-//        e_b_k1 = e_b;
-//
-//        // Malha de fluxo
-//        float e_flux = 0.4  - flux_r;
-//        float ref_kd = 0.02166802248*0.07*e_flux - 0.01168997752*0.07*e_flux_ant + ref_kd_ant;
-//        e_flux_ant = e_flux;
-//        ref_kd_ant = ref_kd;
 
+        // ------------ TRANSFORMADA abc - alpha_beta -----------
+
+       Ialp = 0.666666666666667*(ia-0.5*ib-0.5*ic);
+       Ibet =0.666666666666667*raiz32*(ib-ic);
+
+       Valp = 0.666666666666667*(V_a-0.5*V_b-0.5*V_c);
+       Vbet = 0.666666666666667*raiz32*(V_b-V_c);
+
+       // ESTIMACAO DO FLUXO DO ROTOR
+
+       // modelo do estator
+       U_alp_int = (160e-6)*Valp + U_alp_int_k1;
+       i_alp_int = (160e-6)*Ialp*Rs + i_alp_int_k1;
+
+       U_bet_int = (160e-6)*Vbet + U_bet_int_k1;
+       i_bet_int = (160e-6)*Ibet*Rs + i_bet_int_k1;
+
+       delta_V_a = (1/Kr)*(U_alp_int - i_alp_int+u_a);
+       flux_a = delta_V_a - (sig*(Ls+Lm)/Kr)*Ialp;
+       ref_a = Lm*Ialp;
+
+       delta_V_b = (1/Kr)*(U_bet_int - i_bet_int+u_b);
+       flux_b = delta_V_b - (sig*(Ls+Lm)/Kr)*Ibet;
+       ref_b = Lm*Ibet;
+
+       // modelo do rotor
+       flux_a_cf = 149.7977312077128*flux_a+ 1.9940435300641*flux_a_k1 - 147.8036876776487*flux_a_k2 - 1.994039088505832*flux_a_cf_k1 - 0.994047971622293*flux_a_cf_k2;
+       flux_b_cf = 149.7977312077128*flux_b+ 1.9940435300641*flux_b_k1 - 147.8036876776487*flux_b_k2 - 1.994039088505832*flux_b_cf_k1 - 0.994047971622293*flux_b_cf_k2;
+
+       y_a = flux_a_cf + w*Tr*flux_b;
+       y_b = flux_b_cf - w*Tr*flux_a;
+
+       // controle
+       e_a = ref_a - y_a;
+       e_a_int = (80e-6)*(e_a + e_a_k1) + e_a_int_k1;
+       u_a = 37.094784000000004*(e_a_int +  e_a_int_k1) + u_a_k1;
+
+       e_b = ref_b - y_b;
+       e_b_int = (80e-6)*(e_b + e_b_k1) + e_b_int_k1;
+       u_b = 37.094784000000004*(e_b_int +  e_b_int_k1) + u_b_k1;
+
+       theta_r = atan2(flux_b,flux_a);
+       flux_r = sqrt((flux_a*flux_a)+(flux_b*flux_b));
+
+       // atualização de variáveis
+       U_alp_int_k1 = U_alp_int;
+       U_bet_int_k1 = U_bet_int;
+       i_alp_int_k1 = i_alp_int;
+       i_bet_int_k1 = i_bet_int;
+
+       flux_a_k2 = flux_a_k1;
+       flux_a_k1 = flux_a;
+       flux_b_k2 = flux_b_k1;
+       flux_b_k1 = flux_b;
+
+       flux_a_cf_k2 = flux_a_cf_k1;
+       flux_a_cf_k1 = flux_a_cf;
+       flux_b_cf_k2 = flux_b_cf_k1;
+       flux_b_cf_k1 = flux_b_cf;
+
+       e_a_int_k1 = e_a_int;
+       e_a_k1 = e_a;
+       e_b_int_k1 = e_b_int;
+       e_b_k1 = e_b;
+
+       u_a_k1 = u_a;
+       u_b_k1 = u_b;
+
+        // Malha de fluxo
+        float e_flux = 0.4  - flux_r;
+        ref_kd = 0.02166802248*0.07*e_flux - 0.01168997752*0.07*e_flux_ant + ref_kd_ant;
+        e_flux_ant = e_flux;
+        ref_kd_ant = ref_kd;
         ref_kd = 0.4;
-
         //REFERÊNCIAS EIXO D E Q:
         ref_kd_AD = (int)(1024*ref_kd) + 2048;
         ref_kq_AD = (int)(1024*ref_kq) + 2048;
@@ -817,8 +855,8 @@ __interrupt void timer0_isr(){
 
         //LEI DE CONTROLE:
         //Controladores eixo d e q.
-        v_atual_d =103*erro_cd -100.4 * erro_cd_ant1  + v_d_ant ;
-        v_atual_q =103* erro_cq -100.4* erro_cq_ant1 + v_q_ant ;
+        v_atual_d =103*1.2* erro_cd -100.4 *1.2*  erro_cd_ant1  + v_d_ant ;
+        v_atual_q =103 *1.2*  erro_cq -100.4 *1.2*  erro_cq_ant1 + v_q_ant ;
 
         //Atualização das variáveis.
         erro_cd_ant1 = erro_cd;
@@ -904,32 +942,24 @@ __interrupt void adca1_isr(void){
     Vb_med = AdcbResultRegs.ADCRESULT1;
     Va_med = AdcdResultRegs.ADCRESULT1;
 
-    va = Va_med * 250.0/550.0;
-    vb = Vb_med * 250.0/550.0;
-    vc = Vc_med * 250.0/550.0;
+    va = Va_med * 540.0/4096.0;
+    vb = Vb_med * 540.0/4096.0;
+    vc = Vc_med * 540.0/4096.0;
 
     // Ganho do ADC * Ganho do sensor;
     ic = (Ic_med - Ic_med0)*0.0008056640625*1.33;
     ib = (Ib_med - Ib_med0)*0.0008056640625*1.33;
     ia = (Ia_med - Ia_med0)*0.0008056640625*1.33;
 
-    refmras = ref_MRAS(va, vb, vc, ia, ib, ic);
+    //refmras = ref_MRAS(va, vb, vc, ia, ib, ic);
 
     AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear INT1 flag
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 }
 
-__interrupt void eqep1_isr(){
-
-
-//    EQep1Regs.QCLR.bit.UTO = 1;
-//    EQep1Regs.QCLR.bit.INT = 1;
-//    PieCtrlRegs.PIEACK.all = PIEACK_GROUP5;
-}
-
 void SetupEQEP1 (){
     EALLOW;
-    EQep1Regs.QUPRD = 2000000;            // Unit Timer for 100Hz at 200 MHz
+    EQep1Regs.QUPRD = 500000;            // Unit Timer for 400Hz at 200 MHz
                                               // SYSCLKOUT
     EQep1Regs.QDECCTL.bit.QSRC = 00;      // QEP quadrature count mode
     EQep1Regs.QEPCTL.bit.FREE_SOFT = 2;
@@ -942,6 +972,5 @@ void SetupEQEP1 (){
     EQep1Regs.QCAPCTL.bit.UPPS = 5;       // 1/32 for unit position
     EQep1Regs.QCAPCTL.bit.CCPS = 7;       // 1/128 for CAP clock
     EQep1Regs.QCAPCTL.bit.CEN = 1;        // QEP Capture Enable
-    //EQep1Regs.QEINT.bit.UTO = 1; // 400 Hz interrupt for speed estimation
     EDIS;
 }
