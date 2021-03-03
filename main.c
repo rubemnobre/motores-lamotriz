@@ -72,9 +72,9 @@ float Velo_aux = 0; //Variável auxiliar para controle de velocidade.
 float wsl=0;  //Velocidade de escorregamento do rotor.
 float w_tot =0; //Velocidade elétrica do rotor em rad/s.
 float w_avg =0; //Velocidade angular depois do filtro.
-float ref_Velo = 1000; //Referência de velocidade para o controle do motor.
+float ref_Velo = 800; //Referência de velocidade para o controle do motor.
 unsigned int ref_Velo_AD =0; //Referência digital de velocidade.
-unsigned int ref = 1;   //Escolha da referência de velocidade.
+unsigned int ref = 5;   //Escolha da referência de velocidade.
 float ref_Velo1 =0; //Referência de velocidade para o controle do motor.
 float cont_velo =0; //Contador para a malha de velocidade.
 float cont_velo_aux =0; //Contador para a referência de velocidade.
@@ -82,6 +82,7 @@ float erro_Velo =0; // Erro para a amlha de velocidade.
 float erro_Velo_ant1 =0; //Valores passados para o erro da malha de velocidade.
 float Velo_ant1 =0;//Valores passados para a velociddae do motor.
 
+float wa = 0;
 // Variáveis do controle de fluxo
 //float U_alp_int = 0;
 //float U_bet_int = 0;
@@ -120,7 +121,7 @@ __interrupt void epwm2_isr(void);
 __interrupt void epwm3_isr(void);
 __interrupt void timer0_isr(void);
 __interrupt void eqep1_isr(void);
-float ref_MRAS(float, float, float, float, float, float);
+float ref_MRAS(float, float, float, float, float, float, float);
 // MAIN
 void main(void){
     //INICIALIZAÇÃO DO CONTROLE DO SISTEMA.
@@ -233,13 +234,15 @@ void main(void){
         c=4000 + 3200*__sin(theta_atual_ma  -  ((DPI)/3));
         d=4000 + 3200*__sin(theta_atual_ma  -  ((2*DPI)/3));
 
+
+        DacaRegs.DACVALS.all = Velo_ADC;
+        DacbRegs.DACVALS.all = refmras*2.048;
+
         //LOOP.
         for(;;){
             // va -> ic
             // vb -> vb
             // vc -> ia
-            DacaRegs.DACVALS.all = Velo_ADC;
-            DacbRegs.DACVALS.all = ref_Velo_AD;
             if(saida==1){
                 break;
             }
@@ -566,7 +569,6 @@ void ConfigureDAC(){
     EDIS;
 }
 
-
 int cont_controle = 0;
 unsigned int tc = 0;
 __interrupt void timer0_isr(){
@@ -583,10 +585,19 @@ __interrupt void timer0_isr(){
         }
 
         //LEITURA EQEP -POSIÇÃO.
-        Posicao_ADC  = (int)(EQep1Regs.QPOSCNT);
+        Posicao_ADC  = EQep1Regs.QPOSCNT;
+
+        //wa = (32.0*60.0/2048.0)/(EQep1Regs.QCPRD*6.4e-7);
+        if(EQep1Regs.QEPSTS.bit.COEF == 0 && EQep1Regs.QEPSTS.bit.CDEF == 0){
+            wa = (32.0*60.0/2048.0)/(EQep1Regs.QCPRD*128.0/200.0e6);
+        }else{
+            EQep1Regs.QEPSTS.bit.COEF = 0;
+            EQep1Regs.QEPSTS.bit.CDEF = 0;
+        }
+
 
         //POSIÇAO ANGULAR.
-        Rotor_Posicao = (float)(Posicao_ADC*DPI)/(2048);
+        Rotor_Posicao = ((float)Posicao_ADC)*DPI/2048.0;
         delta_posicao = Rotor_Posicao - Rotor_Posicao_Ant;
 
         //ROTOR PARADO ??
@@ -604,9 +615,9 @@ __interrupt void timer0_isr(){
             //DERIVADA DISCRETA DA POSIÇÃO = VELOCIDADE.
             w = (float)((delta_posicao)/(0.000160));
             Velo = (float)(w*(60/(DPI)));
-
+            Velo = wa;
             // Filtro passa baixa para f32f
-            Velo_avg = Velo_avg + 0.000160*(Velo - Velo_avg);
+            Velo_avg = Velo_avg + 0.000160*100.0*(Velo - Velo_avg);
             w_avg = (Velo_avg*DPI)/(60);
 
             //Velocidade medida em valores digitais.
@@ -718,9 +729,22 @@ __interrupt void timer0_isr(){
                 t = 0.096*cont_velo_aux;
                 ref_Velo = 600 + 200*__sin(DPI*0.25*t);
                 cont_velo_aux++;
-                if(t==4){
+                if(t>=4){
                     cont_velo_aux = 0;
                 }
+            }
+            if(ref==5){
+                t = 0.096*cont_velo_aux;
+                if(t >= 5){
+                    ref_Velo = 1000;
+                }else{
+                    ref_Velo = 800;
+                }
+                cont_velo_aux++;
+                if(t>=10){
+                    cont_velo_aux = 0;
+                }
+                ref_Velo_AD = (int)(2.048*ref_Velo);
             }
             cont_velo = 0;
 
@@ -892,9 +916,12 @@ __interrupt void timer0_isr(){
 }
 
 __interrupt void adca1_isr(void){
-    Ia_med0 = 1792;
-    Ib_med0 = 1798;
-    Ic_med0 = 1718;
+    AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear INT1 flag
+    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
+    GpioDataRegs.GPADAT.bit.GPIO15 = 1;
+    Ia_med0 = 1820;
+    Ib_med0 = 1805;
+    Ic_med0 = 1762;
     //LEITURA DO CONVERSOR AD.
     Ic_med = AdcdResultRegs.ADCRESULT0;
     Ib_med = AdcbResultRegs.ADCRESULT0;
@@ -904,19 +931,18 @@ __interrupt void adca1_isr(void){
     Vb_med = AdcbResultRegs.ADCRESULT1;
     Va_med = AdcdResultRegs.ADCRESULT1;
 
-    va = Va_med * 250.0/550.0;
-    vb = Vb_med * 250.0/550.0;
-    vc = Vc_med * 250.0/550.0;
+    va = Va_med * 250.0/580.0;
+    vb = Vb_med * 250.0/580.0;
+    vc = Vc_med * 250.0/620.0;
 
     // Ganho do ADC * Ganho do sensor;
     ic = (Ic_med - Ic_med0)*0.0008056640625*1.33;
     ib = (Ib_med - Ib_med0)*0.0008056640625*1.33;
     ia = (Ia_med - Ia_med0)*0.0008056640625*1.33;
 
-    refmras = ref_MRAS(va, vb, vc, ia, ib, ic);
+    refmras = ref_MRAS(va, vb, vc, ia, ib*1.3, ic*1.86, Velo_avg);
 
-    AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear INT1 flag
-    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
+    GpioDataRegs.GPADAT.bit.GPIO15 = 0;
 }
 
 __interrupt void eqep1_isr(){
@@ -929,16 +955,17 @@ __interrupt void eqep1_isr(){
 
 void SetupEQEP1 (){
     EALLOW;
-    EQep1Regs.QUPRD = 2000000;            // Unit Timer for 100Hz at 200 MHz
+    EQep1Regs.QUPRD = 1;            // Unit Timer for 100Hz at 200 MHz
                                               // SYSCLKOUT
     EQep1Regs.QDECCTL.bit.QSRC = 00;      // QEP quadrature count mode
     EQep1Regs.QEPCTL.bit.FREE_SOFT = 2;
-    EQep1Regs.QEPCTL.bit.PCRM = 01;         // PCRM=01 mode - QPOSCNT reset on maximum position
+    EQep1Regs.QEPCTL.bit.PCRM = 1;         // PCRM=01 mode - QPOSCNT reset on maximum position
     EQep1Regs.QEPCTL.bit.UTE = 1;         // Unit Timeout Enable
     EQep1Regs.QEPCTL.bit.QCLM = 1;        // Latch on unit time out
-    EQep1Regs.QPOSMAX = 0x7ff;               //0x7ff = 2048 contagens
+    EQep1Regs.QPOSMAX = 2000;               //0x7ff = 2048 contagens
     EQep1Regs.QDECCTL.bit.SWAP = 1;         // troca o sentido da contagem
     EQep1Regs.QEPCTL.bit.QPEN = 1;        // QEP enable
+
     EQep1Regs.QCAPCTL.bit.UPPS = 5;       // 1/32 for unit position
     EQep1Regs.QCAPCTL.bit.CCPS = 7;       // 1/128 for CAP clock
     EQep1Regs.QCAPCTL.bit.CEN = 1;        // QEP Capture Enable

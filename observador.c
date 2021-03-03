@@ -14,10 +14,12 @@
 // Declarações dos anteriores para ref_mras
 float xka1 = 0, xkb1 = 0, dphia_k1 = 0, dphib_k1 = 0, prodk1 = 0, wrk1 = 0, wrf = 0, wr = 0, aux_alpha = 0, aux_beta = 0, phir_alpha_rt = 0, phir_beta_rt = 0;
 
-float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in){
+float aux_alpha2 = 0, aux_alpha3 = 0, aux_beta2 = 0, aux_beta3 = 0;
+
+float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in, float Velo){
     // Transformação de clarke de v
-    float valpha = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
-    float vbeta = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
+    float vbeta = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
+    float valpha = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
 
     // Transformação de clarke de i
     float ialpha = (2.0/3.0)*(ia_in - 0.5*ib_in -0.5*ic_in);
@@ -27,15 +29,32 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
     float xka = (valpha - Rs*ialpha);
     float xkb = (vbeta - Rs*ibeta);
 
-    // Integração
-    aux_alpha = aux_alpha + (Ts/2)*xka + (Ts/2)*xka1;
-    aux_beta  = aux_beta  + (Ts/2)*xkb + (Ts/2)*xkb1;
+    // Integração pura
+//    aux_alpha = aux_alpha + (Ts/2)*xka + (Ts/2)*xka1;
+//    aux_beta  = aux_beta  + (Ts/2)*xkb + (Ts/2)*xkb1;
+//
+//    float phir_alpha_st = (Lr/Lm)*(aux_alpha - sigma*Ls*ialpha );
+//    float phir_beta_st  = (Lr/Lm)*(aux_beta  - sigma*Ls*ibeta );
 
-    float phir_alpha_st = (Lr/Lm)*(aux_alpha - sigma*Ls*ialpha );
-    float phir_beta_st  = (Lr/Lm)*(aux_beta  - sigma*Ls*ibeta );
+    // Integração do fluxo com correção
+    float g1 = 9.993602e-01, g2 = 3.198976e-06, g3 = 9.993602e-01, g4 = 6.397952e-04;
+    aux_alpha = g1*aux_alpha + g2*xka;
+    aux_beta  = g1*aux_beta  + g2*xkb;
 
-//    DacaRegs.DACVALS.all = phir_alpha_st * 2048.0 / 100.0;
-//    DacbRegs.DACVALS.all = phir_beta_st * 2048.0 / 100.0;
+    if(aux_alpha3 >= 0.5) aux_alpha3 = 0.5;
+    if(aux_alpha3 <= -0.5) aux_alpha3 = -0.5;
+    if(aux_beta3 >= 0.5) aux_beta3 = 0.5;
+    if(aux_beta3 <= -0.5) aux_beta3 = -0.5;
+
+    aux_alpha2 = g3*aux_alpha2 + g4*aux_alpha3;
+    aux_beta2  = g3*aux_beta2  + g4*aux_beta3;
+
+    aux_alpha3 = aux_alpha + aux_alpha2;
+    aux_beta3  = aux_beta  + aux_beta2;
+
+
+    float phir_alpha_st = (Lr/Lm)*(aux_alpha3 - sigma*Ls*ialpha );
+    float phir_beta_st  = (Lr/Lm)*(aux_beta3  - sigma*Ls*ibeta );
 
     // Modelo Adaptativo
     float dphir_alpha_rt = -(1/Tr)*phir_alpha_rt - wr*phir_beta_rt  + (Lm/Tr)*ialpha;
@@ -44,8 +63,13 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
     phir_beta_rt   = phir_beta_rt  + (Ts/2)*dphir_beta_rt  + (Ts/2)*dphib_k1;
 
     // Mecanismo de adaptação
-    float prodk = -(phir_beta_st*phir_alpha_rt - phir_alpha_st*phir_beta_rt);
+    //float prodk = -(phir_beta_st*phir_alpha_rt - phir_alpha_st*phir_beta_rt);
+    float prodk = (-phir_beta_st*phir_beta_rt - phir_alpha_st*phir_alpha_rt);
+
     wr = (wrk1 + fpb_b*prodk1 + fpb_a*prodk);
+
+//    DacaRegs.DACVALS.all = 1*(phir_alpha_st * 2048.0 / 5.0) + 1024; // Azul
+//    DacbRegs.DACVALS.all = -1*(phir_beta_rt * 2048.0 / 5.0) + 1024; // Amarelo
 
     // Filtro passa-baixas
     wrf = (wrf + Ts*100*wr)/(1+Ts*100);
@@ -58,8 +82,9 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
     dphib_k1 = dphir_beta_rt;
 
     prodk1 = prodk;
+    //wr = Velo*DPI*p/60.0;
     wrk1 = wr;
-    return (60.0/DPI)*(1.0/p)*wr;  // conversão de rad/s para rpm
+    return (60.0/DPI)*(1.0/p)*wrf;  // conversão de rad/s para rpm
 }
 
 #endif
