@@ -235,8 +235,8 @@ void main(void){
         d=4000 + 3200*__sin(theta_atual_ma  -  ((2*DPI)/3));
 
 
-        DacaRegs.DACVALS.all = Velo_ADC;
-        DacbRegs.DACVALS.all = refmras*2.048;
+        DacaRegs.DACVALS.all = ref_Velo_AD;
+        DacbRegs.DACVALS.all = Velo_ADC;
 
         //LOOP.
         for(;;){
@@ -617,7 +617,7 @@ __interrupt void timer0_isr(){
             Velo = (float)(w*(60/(DPI)));
             Velo = wa;
             // Filtro passa baixa para f32f
-            Velo_avg = Velo_avg + 0.000160*100.0*(Velo - Velo_avg);
+            Velo_avg = Velo_avg + 0.000160*1.0*(Velo - Velo_avg);
             w_avg = (Velo_avg*DPI)/(60);
 
             //Velocidade medida em valores digitais.
@@ -923,9 +923,9 @@ __interrupt void adca1_isr(void){
     Ib_med0 = 1805;
     Ic_med0 = 1762;
     //LEITURA DO CONVERSOR AD.
-    Ic_med = AdcdResultRegs.ADCRESULT0;
-    Ib_med = AdcbResultRegs.ADCRESULT0;
-    Ia_med = AdccResultRegs.ADCRESULT0;
+    Ib_med = AdccResultRegs.ADCRESULT0;
+    Ic_med = AdcbResultRegs.ADCRESULT0;
+    Ia_med = AdcaResultRegs.ADCRESULT0;
 
     Vc_med = AdcaResultRegs.ADCRESULT1;
     Vb_med = AdcbResultRegs.ADCRESULT1;
