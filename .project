@@ -26,11 +26,6 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>2837xD_RAM_lnk_cpu1.cmd</name>
-			<type>1</type>
-			<locationURI>DEVICE_SUPPORT/common/cmd/2837xD_RAM_lnk_cpu1.cmd</locationURI>
-		</link>
-		<link>
 			<name>F2837xD_Adc.c</name>
 			<type>1</type>
 			<locationURI>DEVICE_SUPPORT/common/source/F2837xD_Adc.c</locationURI>

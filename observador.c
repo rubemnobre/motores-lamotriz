@@ -18,6 +18,7 @@ float aux_alpha2 = 0, aux_alpha3 = 0, aux_beta2 = 0, aux_beta3 = 0;
 
 float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in, float Velo){
     // Transformação de clarke de v
+    // Mudanças: valpha e vbeta trocados e mecanismo de adaptação
     float vbeta = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
     float valpha = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
 
@@ -55,6 +56,8 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
 
     float phir_alpha_st = (Lr/Lm)*(aux_alpha3 - sigma*Ls*ialpha );
     float phir_beta_st  = (Lr/Lm)*(aux_beta3  - sigma*Ls*ibeta );
+    //DacaRegs.DACVALS.all = phir_beta_st * 1024.0 / 2.0 + 1024;
+    //DacbRegs.DACVALS.all = phir_beta_rt * 1024.0 / 2.0 + 1024;
 
     // Modelo Adaptativo
     float dphir_alpha_rt = -(1/Tr)*phir_alpha_rt - wr*phir_beta_rt  + (Lm/Tr)*ialpha;
@@ -63,16 +66,17 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
     phir_beta_rt   = phir_beta_rt  + (Ts/2)*dphir_beta_rt  + (Ts/2)*dphib_k1;
 
     // Mecanismo de adaptação
-    //float prodk = -(phir_beta_st*phir_alpha_rt - phir_alpha_st*phir_beta_rt);
-    float prodk = (-phir_beta_st*phir_beta_rt - phir_alpha_st*phir_alpha_rt);
+    float prodk = -(phir_beta_st*phir_alpha_rt - phir_alpha_st*phir_beta_rt);
+    //float prodk = -(phir_beta_st*phir_beta_rt - phir_alpha_st*phir_alpha_rt);
 
     wr = (wrk1 + fpb_b*prodk1 + fpb_a*prodk);
 
 //    DacaRegs.DACVALS.all = 1*(phir_alpha_st * 2048.0 / 5.0) + 1024; // Azul
-//    DacbRegs.DACVALS.all = -1*(phir_beta_rt * 2048.0 / 5.0) + 1024; // Amarelo
+//    DacbRegs.DACVALS.all = 1*(phir_beta_st * 2048.0 / 5.0) + 1024; // Amarelo
 
     // Filtro passa-baixas
-    wrf = (wrf + Ts*100*wr)/(1+Ts*100);
+    wrf = (wrf + Ts*10*wr)/(1+Ts*10);
+    //DacbRegs.DACVALS.all = wrf * 1024.0 / 1000.0 + 1024;
 
     // Atualização das variáveis
     xka1 = xka;
