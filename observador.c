@@ -62,7 +62,7 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
     // Modelo Adaptativo
     float dphir_alpha_rt = -(1/Tr)*phir_alpha_rt - wr*phir_beta_rt  + (Lm/Tr)*ialpha;
     float dphir_beta_rt  = -(1/Tr)*phir_beta_rt  + wr*phir_alpha_rt + (Lm/Tr)*ibeta;
-    phir_alpha_rt  = phir_alpha_rt + (Ts/2)*dphir_alpha_rt + (Ts/2)*dphia_k1;
+    phir_alpha_rt  = (phir_alpha_rt + (Ts/2)*dphir_alpha_rt + (Ts/2)*dphia_k1);
     phir_beta_rt   = phir_beta_rt  + (Ts/2)*dphir_beta_rt  + (Ts/2)*dphib_k1;
 
     // Mecanismo de adaptação
@@ -70,9 +70,10 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
     //float prodk = -(phir_beta_st*phir_beta_rt - phir_alpha_st*phir_alpha_rt);
 
     wr = (wrk1 + fpb_b*prodk1 + fpb_a*prodk);
+    //wr = Velo;
 
-//    DacaRegs.DACVALS.all = 1*(phir_alpha_st * 2048.0 / 5.0) + 1024; // Azul
-//    DacbRegs.DACVALS.all = 1*(phir_beta_st * 2048.0 / 5.0) + 1024; // Amarelo
+    //DacaRegs.DACVALS.all = 1*(phir_alpha_rt * 2048.0 / 5.0) + 1024; // Amarelo
+    //DacbRegs.DACVALS.all = 1*(phir_alpha_st * 2048.0 / 5.0) + 1024; // Azul
 
     // Filtro passa-baixas
     wrf = (wrf + Ts*10*wr)/(1+Ts*10);

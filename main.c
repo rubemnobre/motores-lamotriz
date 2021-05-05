@@ -631,7 +631,8 @@ __interrupt void timer0_isr(){
         //CAMPO ORIENTADO INDIRETO.
         T = ((Llr+Lm)/Rr);
         wsl = (ref_kq)/(ref_kd*T);
-        w_tot = wsl + w_avg;
+        //w_tot = wsl + w_avg;
+        w_tot = wsl + refmras*DPI/60.0;
 
         theta_atual = ((160E-006)*w_tot) + theta_ant; // Integrador discreto.
         theta_ant = theta_atual;
@@ -734,7 +735,7 @@ __interrupt void timer0_isr(){
             if(ref==5){
                 t = 0.096*cont_velo_aux;
                 if(t >= 5){
-                    ref_Velo = 1000;
+                    ref_Velo = 1200;
                 }else{
                     ref_Velo = 600;
                 }
@@ -955,7 +956,7 @@ __interrupt void adca1_isr(void){
     ib = (Ib_med - Ib_med0)*0.0008056640625*1.33;
     ia = (Ia_med - Ia_med0)*0.0008056640625*1.33;
 
-    refmras = -ref_MRAS(va, vb, vc, ia, ib, ic, refmras) + 132;
+    refmras = -ref_MRAS(va, vb, vc, ia, ib, ic, 0) + 132;
 
     DacaRegs.DACVALS.all = Velo_ADC;
     DacbRegs.DACVALS.all = refmras * 2.048;
