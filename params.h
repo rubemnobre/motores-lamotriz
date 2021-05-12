@@ -39,11 +39,11 @@
 #define H 0.00045       // Momento de inércia
 #define F 0.0001        // Coeficiente de atrito
 
-#define k2 2.764830516
-#define k1 98.37266975
-#define gamma 2.341101701
-#define gamma1 0.01
-#define gamma2 0.01
+#define k2 3.3843
+#define k1 120.4147
+#define gamma 2.8657
+#define gamma1 1
+#define gamma2 1
 
 #define Tlinha 0.003680448
 

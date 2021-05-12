@@ -105,7 +105,7 @@ float wa = 0;
 //float e_flux_ant = 0;
 //float ref_kd_ant = 0;
 float V_a = 0, V_b = 0, V_c = 0;
-float va_obs = 0, vb_obs = 0, vc_obs = 0, ia_obs = 0, ib_obs = 0, ic_obs = 0, refmras = 0, iq = 0.5;
+float va_obs = 0, vb_obs = 0, vc_obs = 0, ia_obs = 0, ib_obs = 0, ic_obs = 0, refsmo = 0, iq = 0.5;
 int n_degrau = 0;
 // FUNCTIONS
 void InitEPwmS(void);
@@ -121,7 +121,7 @@ __interrupt void epwm2_isr(void);
 __interrupt void epwm3_isr(void);
 __interrupt void timer0_isr(void);
 __interrupt void eqep1_isr(void);
-float ref_MRAS(float, float, float, float, float, float, float);
+float ref_SMO(float, float, float, float, float, float);
 // MAIN
 void main(void){
     //INICIALIZAÇÃO DO CONTROLE DO SISTEMA.
@@ -624,15 +624,15 @@ __interrupt void timer0_isr(){
         Velo_ant1 = Velo_avg;
 
 
-    //refmras = ref_MRAS(va_obs, vb_obs, vc_obs, ia, ib, ic);
+    //refsmo = ref_MRAS(va_obs, vb_obs, vc_obs, ia, ib, ic);
     //INÍCIO DA MALHA DE CONTROLE.
 
     if (pin12==1){
         //CAMPO ORIENTADO INDIRETO.
         T = ((Llr+Lm)/Rr);
         wsl = (ref_kq)/(ref_kd*T);
-        //w_tot = wsl + w_avg;
-        w_tot = wsl + refmras*DPI/60.0;
+        //w_tot = wsl + refsmo*DPI/60.0;
+        w_tot = wsl + w_avg;
 
         theta_atual = ((160E-006)*w_tot) + theta_ant; // Integrador discreto.
         theta_ant = theta_atual;
@@ -763,7 +763,7 @@ __interrupt void timer0_isr(){
 
             //double kp = 0.0002;
             //double ki = 1.99e-4;
-            float v_controle = refmras;
+            float v_controle = Velo_avg;
             erro_Velo = ref_Velo - v_controle;
             ref_kq = ref_kq_ant + ki*erro_Velo_ant1 + kp*erro_Velo;
             erro_Velo_ant1 = erro_Velo;
@@ -935,7 +935,7 @@ __interrupt void adca1_isr(void){
     AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear INT1 flag
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
     GpioDataRegs.GPADAT.bit.GPIO15 = 1;
-    Ia_med0 = 2200;
+    Ia_med0 = 2375;
     Ib_med0 = 2160;
     Ic_med0 = 2540;
     //LEITURA DO CONVERSOR AD.
@@ -956,10 +956,10 @@ __interrupt void adca1_isr(void){
     ib = (Ib_med - Ib_med0)*0.0008056640625*1.33;
     ia = (Ia_med - Ia_med0)*0.0008056640625*1.33;
 
-    refmras = -ref_MRAS(va, vb, vc, ia, ib, ic, 0) + 132;
+    refsmo = ref_SMO(va, vb, vc, ia, ib, ic);
 
-    DacaRegs.DACVALS.all = Velo_ADC;
-    DacbRegs.DACVALS.all = refmras * 2.048;
+//    DacaRegs.DACVALS.all = Velo_ADC;
+//    DacbRegs.DACVALS.all = refsmo * 2.048;
 
     GpioDataRegs.GPADAT.bit.GPIO15 = 0;
 }

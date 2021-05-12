@@ -97,57 +97,131 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
 #ifdef SMO
 
 // Declaracoes para o observador SMO
-float dialpha_est = 0, dibeta_est = 0, ialpha_est = 0, ibeta_est = 0, qalpha = 0, qbeta = 0, salpha = 1, sbeta = 1, salphak1 = 0, sbetak1 = 0, dflux_est_alpha = 0, dflux_est_beta= 0, flux_est_alpha= 0, flux_est_beta= 0;
+float dialpha_est = 0, dibeta_est = 0, ialpha_est = 0, ibeta_est = 0, qalpha = 0, qbeta = 0, salpha = 1, sbeta = 1, salphak1 = 0, sbetak1 = 0, dflux_est_alpha = 0, dflux_est_beta= 0, flux_est_alpha= 0, flux_est_beta= 0, dqalpha = 0, dqbeta = 0;
 
+float y1alpha = 0, y1beta = 0, y2alpha = 0, y2beta = 0, zalpha = 0, zbeta = 0;  // variáveis para integração das correntes
+float wfiltro = 0, dfilt = 0;
+
+float int_sa = 0;
 float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in){ // Observador de fluxo rotórico e de velocidade por modos deslizantes
-    // Transformação de eixos de referência (invariante em amplitude)
-    float valpha = (2/3)*(va_in - 0.5*vb_in - 0.5*vc_in);
-    float vbeta  = -(2/3)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
 
-    float ialpha = (2/3)*(ia_in -0.5*ib_in - 0.5*ic_in);
-    float ibeta  = -(2/3)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
+
+
+// Transformação de eixos de referência (invariante em amplitude)
+    float valpha = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
+    float vbeta = -(2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
+
+    float ialpha = (2.0/3.0)*(ia_in -0.5*ib_in - 0.5*ic_in);
+    float ibeta  = -(2.0/3.0)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
 
     // Observador de corrente
     // Derivadas das correntes em alpha/beta
     dialpha_est = qalpha - k1*ialpha_est + k2*valpha;
     dibeta_est  = qbeta  - k1*ibeta_est  + k2*vbeta;
 
+
     // Integração da corrente
     ialpha_est = ialpha_est + Ts*(dialpha_est);
     ibeta_est  = ibeta_est  + Ts*(dibeta_est);
 
-    // Cálculo das funções "s" em alpha/beta
-    salpha = ialpha_est - ialpha;
-    sbeta  = ibeta_est  - ibeta;
+    DacaRegs.DACVALS.all = 1*(ibeta_est * 2048.0 / 5.0) + 1024; // Amarelo
+    DacbRegs.DACVALS.all = 1*(ialpha * 2048.0 / 5.0) + 1024; // Azul
 
-    // Cálculo de q
+    // Cálculo das funções "s" em alpha/beta
+//     salpha = ialpha_est - ialpha;
+//     sbeta  = ibeta_est  - ibeta;
+
+        salpha = (ialpha_est - ibeta);
+        sbeta  = (ibeta_est  - ialpha);
+
+
+
+    //DacaRegs.DACVALS.all = 1*(qalpha * 2048.0 / 10000.0) + 1024; // Amarelo
+    //DacbRegs.DACVALS.all = 1*(qbeta * 2048.0 / 10000.0) + 1024; // Azul
+    //int_sa += Ts*(salpha-salphak1);
+
+    // Cálculo de dq
+    dqalpha = - (1/Ts)*( (1+Ts*gamma1)*salpha - salphak1);
+    dqbeta  = - (1/Ts)*( (1+Ts*gamma2)*sbeta - sbetak1 );
+
+//    dqalpha = ((1+Ts*gamma1)*salpha - salphak1);
+//    dqbeta =  (sbeta - sbetak1);
+
+//     Cálculo de q
     qalpha = qalpha - (1/Ts)*( (1+Ts*gamma1)*salpha - salphak1);
     qbeta  = qbeta  - (1/Ts)*( (1+Ts*gamma2)*sbeta - sbetak1 );
 
-    // Cálculo de dq
-    // dqalpha = - (1/Ts)*( (1+Ts*gamma1)*salpha - salphak1);
-    // dqbeta  = - (1/Ts)*( (1+Ts*gamma2)*sbeta - sbetak1 );
+    //qalpha += dqalpha;
+    //qbeta += dqbeta;
+
+//
+//    DacaRegs.DACVALS.all = 1*(qalpha * 2048.0 / 5.0) + 1024; // Amarelo
+//    DacbRegs.DACVALS.all = 1*(qbeta * 2048.0 / 5.0) + 1024; // Azul
+
 
     // Cálculo das derivadas dos fluxos
     dflux_est_alpha = - qalpha/gamma;
     dflux_est_beta  = - qbeta/gamma;
 
-    // Integração dos fluxos
-    flux_est_alpha = flux_est_alpha + Ts*dflux_est_alpha;
-    flux_est_beta  = flux_est_beta  + Ts*dflux_est_beta;
+
+    // Integração dos fluxos com correção
+//    float m1 = 9.996801e-01, m2 = 3.199488e-06, m3 = 9.996801e-01, m4 = 3.199488e-04, sat =10;
+    float m1 = 9.996001e-01, m2 = 3.199360e-06, m3 = 9.996001e-01, m4 = 3.999200e-04, sat = 5;
+
+                y1alpha = m1*y1alpha +  m2*dflux_est_alpha;
+                y1beta  = m1*y1beta  + m2*dflux_est_beta;
+
+                if(flux_est_alpha >= sat) zalpha = sat;
+                if(flux_est_alpha <= -sat) zalpha = -sat;
+                if(flux_est_beta >= sat) zbeta = sat;
+                if(flux_est_beta <= -sat) zbeta = -sat;
+
+                y2alpha = m3*y2alpha + m4*zalpha;
+                y2beta  = m3*y2beta  + m4*zbeta;
+
+                flux_est_alpha = (y1alpha + y2alpha);
+                flux_est_beta  = (y1beta  + y2beta);
+
+
+////     Integração dos fluxos
+//    flux_est_alpha = 9.996801e-01*flux_est_alpha + 3.199488e-06*(dflux_est_alpha); // usando FPB (wc = 100)
+//    flux_est_beta  =  9.996801e-01*flux_est_beta  + 3.199488e-06*(dflux_est_beta);
+
+//    flux_est_alpha  = flux_est_alpha  + Ts*(dflux_est_alpha);  // integrador puro
+//    flux_est_beta  = flux_est_beta  + Ts*(dflux_est_beta);
+
+
+//
+    //DacaRegs.DACVALS.all = 1*(flux_est_alpha * 2048.0 / 5.0) + 1024; // Amarelo
+    //DacbRegs.DACVALS.all = 1*(flux_est_beta * 2048.0 / 5.0) + 1024; // Azul
 
     // Estimador de velocidade
-    wr = -(flux_est_alpha*dflux_est_beta - flux_est_beta*dflux_est_alpha - Lm*(Rr/Lr)*(ibeta_est*flux_est_alpha - ialpha_est*flux_est_beta));
-    float D = (flux_est_beta*flux_est_beta + flux_est_alpha*flux_est_alpha);
-    if(D <= 0.04) D = 0.01;
+//    float wr = -(flux_est_alpha*dflux_est_beta - flux_est_beta*dflux_est_alpha - Lm*(Rr/Lr)*(ibeta_est*flux_est_alpha - ialpha_est*flux_est_beta));
+//    float D = (flux_est_beta*flux_est_beta + flux_est_alpha*flux_est_alpha);
+//    if(D <= 0.04) D = 0.01;
+
+//     float D = (1/(gamma*gamma))*(qalpha*qalpha + qbeta*qbeta) + (Lm/gamma)*(qalpha*dialpha_est + qbeta*dibeta_est);
+//     float wr = (1/(gamma*D))*( (-qbeta/gamma - Lm*dibeta_est)*dqalpha + (qalpha/gamma + Lm*dialpha_est)*dqbeta);
+//     wfiltro = 9.968051e-01*wfiltro + 3.194885e-06*wr;
+
+
 
     // Atualização das variáveis
     salphak1 = salpha;
     sbetak1 = sbeta;
 
     // Saída do observador
-    wr = wr/D;
-    return wr;
+//    wr = wr/D;
+//    wfiltro = m1*wfiltro + m2*wr;
+//     dfilt =  9.998080e-01*dfilt + 3.199693e-06*D;
+
+
+//     wfiltro = 1/D;
+
+//    DacbRegs.DACVALS.all = (wfiltro * 1.0 / 1000.0) + 1024; // Azul
+//    DacbRegs.DACVALS.all = (wfiltro * 2048.0 / 5.0) + 1024; // Azul
+    return wfiltro;
+
 }
 
 #endif
