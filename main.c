@@ -956,10 +956,10 @@ __interrupt void adca1_isr(void){
     ib = (Ib_med - Ib_med0)*0.0008056640625*1.33;
     ia = (Ia_med - Ia_med0)*0.0008056640625*1.33;
 
-    refsmo = -ref_SMO(va, vb, vc, ia, ib, ic)*5.0 + 1200.0;
+    refsmo = ref_SMO(va, vb, vc, ia, ib, ic) + 300;//*5.0 + 1200;//*1.2 + 120.0;
 
-    //DacaRegs.DACVALS.all = Velo_ADC;
-    //DacbRegs.DACVALS.all = refsmo * 2.048;
+//    DacaRegs.DACVALS.all = Velo_ADC;
+//    DacbRegs.DACVALS.all = refsmo;// * 2.048;
 
     GpioDataRegs.GPADAT.bit.GPIO15 = 0;
 }

@@ -112,8 +112,8 @@ float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 
 
 // Transformação de eixos de referência (invariante em amplitude)
-    float valpha = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
-    float vbeta = -(2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
+    float vbeta = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
+    float valpha = -(2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
 
     float ialpha = (2.0/3.0)*(ia_in -0.5*ib_in - 0.5*ic_in);
     float ibeta  = -(2.0/3.0)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
@@ -128,15 +128,15 @@ float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
     ialpha_est = ialpha_est + Ts*(dialpha_est);
     ibeta_est  = ibeta_est  + Ts*(dibeta_est);
 
-//    DacaRegs.DACVALS.all = 1*(ialpha * 2048.0 / 5.0) + 1024; // Amarelo
+//    DacaRegs.DACVALS.all = 1*(ialpha_est * 2048.0 / 5.0) + 1024; // Amarelo
 //    DacbRegs.DACVALS.all = 1*(ibeta_est * 2048.0 / 5.0) + 1024; // Azul
 
     // Cálculo das funções "s" em alpha/beta
 //     salpha = ialpha_est - ialpha;
 //     sbeta  = ibeta_est  - ibeta;
 
-        salpha = (ialpha_est - ibeta);
-        sbeta  = (ibeta_est  - ialpha);
+        salpha = (ialpha_est - ialpha);
+        sbeta  = (ibeta_est  - ibeta);
 
     //DacaRegs.DACVALS.all = 1*(qalpha * 2048.0 / 10000.0) + 1024; // Amarelo
     //DacbRegs.DACVALS.all = 1*(qbeta * 2048.0 / 10000.0) + 1024; // Azul
@@ -222,9 +222,9 @@ float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 //    dfilt =  9.999968e-01*dfilt + 3.199995e-06*(D); // wc = 1
 //    dfilt =  9.999680e-01*dfilt + 3.199949e-05*(D); // wc = 10
 //    dfilt =  9.999360e-01*dfilt + 6.399795e-05*(D); // wc = 20
-    dfilt =  9.999040e-01*dfilt + 9.599539e-05*(D); // wc = 30
+//    dfilt =  9.999040e-01*dfilt + 9.599539e-05*(D); // wc = 30
 //    dfilt =  9.998720e-01*dfilt + 1.279918e-04*(D); // wc = 40
-//    dfilt =  9.998400e-01*dfilt + 1.599872e-04*(D); // wc = 50
+    dfilt =  9.998400e-01*dfilt + 1.599872e-04*(D); // wc = 50
 
 //     wr = wr/D;
      wfiltro = 9.999680e-01*wfiltro + 3.199949e-06*(wr);
@@ -233,6 +233,11 @@ float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 
     DacbRegs.DACVALS.all = (wfiltro * (2048.0 / 20.0)) + 1024; // Azul
     DacaRegs.DACVALS.all = ((dfilt + 0.4) * 2048.0 / 1.0) + 1024; // Amarelo
+
+
+//    DacaRegs.DACVALS.all = ((wfiltro/dfilt) *2048.0 / 20.0) + 1024; // Amarelo
+
+
 //    valores_D[i_D] = D;
 //    i_D++;
 //    i_D %= 10;
