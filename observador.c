@@ -5,6 +5,7 @@
  */
 
 #include<fpu32/fpu_vector.h>
+#include<math.h>
 #include "F28x_Project.h"
 #include "params.h"
 #define DPI 6.28318530717958647692
@@ -57,7 +58,8 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
     float phir_alpha_st = (Lr/Lm)*(aux_alpha3 - sigma*Ls*ialpha );
     float phir_beta_st  = (Lr/Lm)*(aux_beta3  - sigma*Ls*ibeta );
     //DacaRegs.DACVALS.all = phir_beta_st * 1024.0 / 2.0 + 1024;
-    //DacbRegs.DACVALS.all = phir_beta_rt * 1024.0 / 2.0 + 1024;
+    //float pos = atan2(phir_alpha_st, phir_beta_st);
+    //DacbRegs.DACVALS.all = pos * 1024.0 / 7 + 1024;
 
     // Modelo Adaptativo
     float dphir_alpha_rt = -(1/Tr)*phir_alpha_rt - wr*phir_beta_rt  + (Lm/Tr)*ialpha;
@@ -89,6 +91,7 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
     prodk1 = prodk;
     //wr = Velo*DPI*p/60.0;
     wrk1 = wr;
+    //return pos;
     return (60.0/DPI)*(1.0/p)*wrf;  // conversão de rad/s para rpm
 }
 
