@@ -220,19 +220,22 @@ float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 
 
 //    dfilt =  9.999968e-01*dfilt + 3.199995e-06*(D); // wc = 1
-//    dfilt =  9.999680e-01*dfilt + 3.199949e-05*(D); // wc = 10
+    dfilt =  9.999680e-01*dfilt + 3.199949e-05*(D); // wc = 10
 //    dfilt =  9.999360e-01*dfilt + 6.399795e-05*(D); // wc = 20
 //    dfilt =  9.999040e-01*dfilt + 9.599539e-05*(D); // wc = 30
 //    dfilt =  9.998720e-01*dfilt + 1.279918e-04*(D); // wc = 40
-    dfilt =  9.998400e-01*dfilt + 1.599872e-04*(D); // wc = 50
+//    dfilt =  9.998400e-01*dfilt + 1.599872e-04*(D); // wc = 50
 
 //     wr = wr/D;
      wfiltro = 9.999680e-01*wfiltro + 3.199949e-06*(wr);
 
+//     DacaRegs.DACVALS.all = dfilt*10;
+//     DacbRegs.DACVALS.all = wfiltro;
+
 //     wfiltro = wr;
 
 //    DacbRegs.DACVALS.all = (wfiltro * (2048.0 / 20.0)) + 1024; // Azul
-//    DacaRegs.DACVALS.all = ((dfilt + 0.4) * 2048.0 / 1.0) + 1024; // Amarelo
+//    DacaRegs.DACVALS.all = ((dfilt) * 2048.0 / 1.0) + 1024; // Amarelo
 
 
 //    DacaRegs.DACVALS.all = ((wfiltro/dfilt) *2048.0 / 20.0) + 1024; // Amarelo

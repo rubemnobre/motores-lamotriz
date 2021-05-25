@@ -736,7 +736,7 @@ __interrupt void timer0_isr(){
                 if(t >= 5){
                     ref_Velo = 800;
                 }else{
-                    ref_Velo = 600;
+                    ref_Velo = 500;
                 }
                 cont_velo_aux++;
                 if(t>=10){
@@ -846,8 +846,8 @@ __interrupt void timer0_isr(){
         }
         //ref_kq = iq;
 
-        DacaRegs.DACVALS.all = (ia*2048.0/3.0) + 1024;
-        DacbRegs.DACVALS.all = (ib*2048.0/3.0) + 1024;
+//        DacaRegs.DACVALS.all = (ia*2048.0/3.0) + 1024;
+//        DacbRegs.DACVALS.all = (ib*2048.0/3.0) + 1024;
 
         //REFERÊNCIAS EIXO D E Q:
         ref_kd_AD = (int)(1024*ref_kd) + 2048;
@@ -973,9 +973,9 @@ __interrupt void adca1_isr(void){
     ic = ic_filt;
 
     refsmo = ref_SMO(va, vb, vc, ia, ib, ic)*5;//*5.0 + 1200;//*1.2 + 120.0;
-
-//    DacaRegs.DACVALS.all = ref_Velo_AD;
-//    DacbRegs.DACVALS.all = refsmo * 2.048;
+//
+    DacaRegs.DACVALS.all = ref_Velo_AD;
+    DacbRegs.DACVALS.all = refsmo * 2.048;
 
     GpioDataRegs.GPADAT.bit.GPIO15 = 0;
 }
