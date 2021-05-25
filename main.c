@@ -500,7 +500,6 @@ void SetupADC(void){
     EDIS;
 
     DELAY_US(2000);
-
     EALLOW;
 
     //Configuração ADC-A
@@ -631,8 +630,8 @@ __interrupt void timer0_isr(){
         //CAMPO ORIENTADO INDIRETO.
         T = ((Llr+Lm)/Rr);
         wsl = (ref_kq)/(ref_kd*T);
-        //w_tot = wsl + refsmo*DPI/60.0;
-        w_tot = wsl + w_avg;
+        w_tot = wsl + refsmo*DPI/60.0;
+        //w_tot = wsl + w_avg;
 
         theta_atual = ((160E-006)*w_tot) + theta_ant; // Integrador discreto.
         theta_ant = theta_atual;
@@ -657,8 +656,8 @@ __interrupt void timer0_isr(){
             theta_rad = theta_rad + DPI;
         }
 
-        I_d = 0.81649658092772603273242802490196*(ia*__cos(theta_rad) + ib*__cos(theta_rad - ((DPI)/3)) + ic*__cos(theta_rad -((2*DPI)/3)));
-        I_q = 0.81649658092772603273242802490196*(-ia*__sin(theta_rad) - ib*__sin(theta_rad - ((DPI)/3)) - ic*__sin(theta_rad -((2*DPI)/3)));
+        I_d = 0.81649658092772603273242802490196*(ic*__cos(theta_rad) + ib*__cos(theta_rad - ((DPI)/3)) + ia*__cos(theta_rad -((2*DPI)/3)));
+        I_q = 0.81649658092772603273242802490196*(-ic*__sin(theta_rad) - ib*__sin(theta_rad - ((DPI)/3)) - ia*__sin(theta_rad -((2*DPI)/3)));
 
         I_atual_d = I_d;
         I_atual_q = I_q;
@@ -735,7 +734,7 @@ __interrupt void timer0_isr(){
             if(ref==5){
                 t = 0.096*cont_velo_aux;
                 if(t >= 5){
-                    ref_Velo = 1200;
+                    ref_Velo = 800;
                 }else{
                     ref_Velo = 600;
                 }
@@ -763,7 +762,7 @@ __interrupt void timer0_isr(){
 
             //double kp = 0.0002;
             //double ki = 1.99e-4;
-            float v_controle = Velo_avg;
+            float v_controle = refsmo;
             erro_Velo = ref_Velo - v_controle;
             ref_kq = ref_kq_ant + ki*erro_Velo_ant1 + kp*erro_Velo;
             erro_Velo_ant1 = erro_Velo;
@@ -846,6 +845,9 @@ __interrupt void timer0_isr(){
             }
         }
         //ref_kq = iq;
+
+        DacaRegs.DACVALS.all = (ia*2048.0/3.0) + 1024;
+        DacbRegs.DACVALS.all = (ib*2048.0/3.0) + 1024;
 
         //REFERÊNCIAS EIXO D E Q:
         ref_kd_AD = (int)(1024*ref_kd) + 2048;
@@ -931,13 +933,15 @@ __interrupt void timer0_isr(){
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 }
 
+float ia_filt = 0, ib_filt = 0, ic_filt = 0;
+float ga = 680, gb = 560, gc = 500;
 __interrupt void adca1_isr(void){
     AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear INT1 flag
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
     GpioDataRegs.GPADAT.bit.GPIO15 = 1;
-    Ia_med0 = 2375;
-    Ib_med0 = 2160;
-    Ic_med0 = 2540;
+    Ia_med0 = 2000;
+    Ib_med0 = 2000;
+    Ic_med0 = 2000;
     //LEITURA DO CONVERSOR AD.
     Ib_med = AdccResultRegs.ADCRESULT0;
     Ic_med = AdcbResultRegs.ADCRESULT0;
@@ -952,14 +956,26 @@ __interrupt void adca1_isr(void){
     vc = Vc_med * 250.0/580.0;
 
     // Ganho do ADC * Ganho do sensor;
-    ic = (Ic_med - Ic_med0)*0.0008056640625*1.33;
-    ib = (Ib_med - Ib_med0)*0.0008056640625*1.33;
-    ia = (Ia_med - Ia_med0)*0.0008056640625*1.33;
+    ic = (Ic_med - Ic_med0)/gc;
+    ib = (Ib_med - Ib_med0)/gb;
+    ia = (Ia_med - Ia_med0)/ga;
 
-    refsmo = ref_SMO(va, vb, vc, ia, ib, ic) + 300;//*5.0 + 1200;//*1.2 + 120.0;
+    float kk1 = 9.809831e-01, kk2 = 1.901685e-02;
+    ia_filt = kk1*ia_filt + kk2*ia;
+    ib_filt = kk1*ib_filt + kk2*ib;
+    ic_filt = kk1*ic_filt + kk2*ic;
+//
+//    DacaRegs.DACVALS.all = (ib_filt*2048.0/3.0) + 1024;
+//    DacbRegs.DACVALS.all = (ia_filt*2048.0/3.0) + 1024;
 
-//    DacaRegs.DACVALS.all = Velo_ADC;
-//    DacbRegs.DACVALS.all = refsmo;// * 2.048;
+    ia = ia_filt;
+    ib = ib_filt;
+    ic = ic_filt;
+
+    refsmo = ref_SMO(va, vb, vc, ia, ib, ic)*5;//*5.0 + 1200;//*1.2 + 120.0;
+
+//    DacaRegs.DACVALS.all = ref_Velo_AD;
+//    DacbRegs.DACVALS.all = refsmo * 2.048;
 
     GpioDataRegs.GPADAT.bit.GPIO15 = 0;
 }

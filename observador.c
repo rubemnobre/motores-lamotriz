@@ -231,8 +231,8 @@ float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 
 //     wfiltro = wr;
 
-    DacbRegs.DACVALS.all = (wfiltro * (2048.0 / 20.0)) + 1024; // Azul
-    DacaRegs.DACVALS.all = ((dfilt + 0.4) * 2048.0 / 1.0) + 1024; // Amarelo
+//    DacbRegs.DACVALS.all = (wfiltro * (2048.0 / 20.0)) + 1024; // Azul
+//    DacaRegs.DACVALS.all = ((dfilt + 0.4) * 2048.0 / 1.0) + 1024; // Amarelo
 
 
 //    DacaRegs.DACVALS.all = ((wfiltro/dfilt) *2048.0 / 20.0) + 1024; // Amarelo
