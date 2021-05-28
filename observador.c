@@ -186,7 +186,8 @@ float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
                 flux_est_alpha = (y1alpha + y2alpha);
                 flux_est_beta  = (y1beta  + y2beta);
 
-
+//                DacaRegs.DACVALS.all = (flux_est_alpha*2000.0/1.0) + 2000;
+//                DacbRegs.DACVALS.all = (flux_est_beta*2000.0/1.0) + 2000;
 ////     Integração dos fluxos
 //    flux_est_alpha = 9.996801e-01*flux_est_alpha + 3.199488e-06*(dflux_est_alpha); // usando FPB (wc = 100)
 //    flux_est_beta  =  9.996801e-01*flux_est_beta  + 3.199488e-06*(dflux_est_beta);

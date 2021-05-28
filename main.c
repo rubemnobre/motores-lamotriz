@@ -734,7 +734,7 @@ __interrupt void timer0_isr(){
             if(ref==5){
                 t = 0.096*cont_velo_aux;
                 if(t >= 5){
-                    ref_Velo = 800;
+                    ref_Velo = 1000;
                 }else{
                     ref_Velo = 500;
                 }
@@ -844,10 +844,12 @@ __interrupt void timer0_isr(){
                 iq = 0.5;
             }
         }
-        //ref_kq = iq;
+//        ref_kq = iq;
 
-//        DacaRegs.DACVALS.all = (ia*2048.0/3.0) + 1024;
-//        DacbRegs.DACVALS.all = (ib*2048.0/3.0) + 1024;
+//        DacaRegs.DACVALS.all = (I_d*2048.0/1.0);
+//        DacbRegs.DACVALS.all = (I_q*2048.0/1.0);
+        DacbRegs.DACVALS.all = (I_d*2000.0/1.0);
+        DacaRegs.DACVALS.all = (I_q*2000.0/1.0);
 
         //REFERÊNCIAS EIXO D E Q:
         ref_kd_AD = (int)(1024*ref_kd) + 2048;
@@ -859,8 +861,11 @@ __interrupt void timer0_isr(){
 
         //LEI DE CONTROLE:
         //Controladores eixo d e q.
-        v_atual_d =103*erro_cd -100.4 * erro_cd_ant1  + v_d_ant ;
-        v_atual_q =103* erro_cq -100.4* erro_cq_ant1 + v_q_ant ;
+        float kp_i = 103, ki_i = 100.4;
+//        float kp_i =1000, ki_i = 1000*0.98;
+        v_atual_d = kp_i*erro_cd - ki_i*erro_cd_ant1 + v_d_ant ;
+        v_atual_q = kp_i*erro_cq - ki_i*erro_cq_ant1 + v_q_ant ;
+
 
         //Atualização das variáveis.
         erro_cd_ant1 = erro_cd;
@@ -965,17 +970,19 @@ __interrupt void adca1_isr(void){
     ib_filt = kk1*ib_filt + kk2*ib;
     ic_filt = kk1*ic_filt + kk2*ic;
 //
-//    DacaRegs.DACVALS.all = (ib_filt*2048.0/3.0) + 1024;
-//    DacbRegs.DACVALS.all = (ia_filt*2048.0/3.0) + 1024;
+    float ibeta = (2.0/3.0)*(ia_filt - 0.5*ib_filt -0.5*ic_filt);
+    float ialpha = (2.0/3.0)*(0.86602540378443864676*ib_filt - 0.86602540378443864676*ic_filt);
+//    DacaRegs.DACVALS.all = (ialpha*2000.0/1.0) + 2000;
+//    DacbRegs.DACVALS.all = (ibeta*2000.0/1.0) + 2000;
 
     ia = ia_filt;
     ib = ib_filt;
     ic = ic_filt;
 
-    refsmo = ref_SMO(va, vb, vc, ia, ib, ic)*5;//*5.0 + 1200;//*1.2 + 120.0;
-//
-    DacaRegs.DACVALS.all = ref_Velo_AD;
-    DacbRegs.DACVALS.all = refsmo * 2.048;
+    refsmo = ref_SMO(va, vb, vc, ia, ib, ic)*5.65;//*5.0 + 1200;//*1.2 + 120.0;
+////
+//    DacaRegs.DACVALS.all = ref_Velo_AD;
+//    DacbRegs.DACVALS.all = refsmo * 2.048;
 
     GpioDataRegs.GPADAT.bit.GPIO15 = 0;
 }
