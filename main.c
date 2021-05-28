@@ -741,9 +741,9 @@ __interrupt void timer0_isr(){
             if(ref==5){
                 t = 0.096*cont_velo_aux;
                 if(t >= 5){
-                    ref_Velo = 800;
+                    ref_Velo = 1000;
                 }else{
-                    ref_Velo = 600;
+                    ref_Velo = 500;
                 }
                 cont_velo_aux++;
                 if(t>=10){
@@ -854,8 +854,8 @@ __interrupt void timer0_isr(){
 //        ref_kq = iq;
 
 
-//        DacaRegs.DACVALS.all = (I_d*1024.0/1.0) + 1024;
-//        DacbRegs.DACVALS.all = (ref_kd*1024.0/1.0) + 1024;
+//        DacaRegs.DACVALS.all = (I_q*2000.0/1.0);
+//        DacbRegs.DACVALS.all = (I_d*2000.0/1.0);
 
         //REFERÊNCIAS EIXO D E Q:
         ref_kd_AD = (int)(1024*ref_kd) + 2048;
@@ -988,7 +988,7 @@ __interrupt void adca1_isr(void){
     ib = ib_filt;
     ic = ic_filt;
 
-    refmras = -ref_MRAS(va, vb, vc, ia, ib, ic, 0) + 80;
+    refmras = -ref_MRAS(va, vb, vc, ia, ib, ic, 0)*1.3;
 
     DacaRegs.DACVALS.all = Velo_ADC;
     DacbRegs.DACVALS.all = refmras * 2.048;
