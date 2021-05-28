@@ -854,8 +854,8 @@ __interrupt void timer0_isr(){
 //        ref_kq = iq;
 
 
-//        DacaRegs.DACVALS.all = (I_q*2000.0/1.0);
-//        DacbRegs.DACVALS.all = (I_d*2000.0/1.0);
+        DacaRegs.DACVALS.all = (I_q*2000.0/1.0);
+        DacbRegs.DACVALS.all = (ref_kq*2000.0/1.0);
 
         //REFERÊNCIAS EIXO D E Q:
         ref_kd_AD = (int)(1024*ref_kd) + 2048;
@@ -869,7 +869,8 @@ __interrupt void timer0_isr(){
         //Controladores eixo d e q.
 //        v_atual_d =103*erro_cd -100.4 * erro_cd_ant1  + v_d_ant ;
 //        v_atual_q =103* erro_cq -100.4* erro_cq_ant1 + v_q_ant ;
-        float kpi = 103, kii = 103*0.9748;
+
+        float kpi = 103, kii = 100.4;
         v_atual_d = v_d_ant + kpi*erro_cd - kii*erro_cd_ant1;
         v_atual_q = v_q_ant + kpi*erro_cq - kii*erro_cq_ant1;
 
@@ -952,8 +953,6 @@ __interrupt void timer0_isr(){
 float ia_filt = 0, ib_filt = 0, ic_filt = 0;
 float ga = 680, gb = 560, gc = 500;
 __interrupt void adca1_isr(void){
-    AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear INT1 flag
-    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
     GpioDataRegs.GPADAT.bit.GPIO15 = 1;
     Ia_med0 = 2000;
     Ib_med0 = 2000;
@@ -988,15 +987,17 @@ __interrupt void adca1_isr(void){
     ib = ib_filt;
     ic = ic_filt;
 
-    refmras = -ref_MRAS(va, vb, vc, ia, ib, ic, 0)*1.3;
+    refmras = -ref_MRAS(va, vb, vc, ia, ib, ic, 0)*0.85 + 290;
 
-    DacaRegs.DACVALS.all = Velo_ADC;
-    DacbRegs.DACVALS.all = refmras * 2.048;
+//    DacaRegs.DACVALS.all = ref_Velo_AD;
+//    DacbRegs.DACVALS.all = refmras * 2.048;
 //
 //    DacaRegs.DACVALS.all = (id_ma*2048.0/2.0) + 1024;
 //    DacbRegs.DACVALS.all = (iq_ma*2048.0/2.0) + 1024;
 
     GpioDataRegs.GPADAT.bit.GPIO15 = 0;
+    AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear INT1 flag
+    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 }
 
 __interrupt void eqep1_isr(){

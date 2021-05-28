@@ -23,9 +23,12 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
     float vbeta = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
     float valpha = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
 
+
     // Transformação de clarke de i
     float ialpha = (2.0/3.0)*(ia_in - 0.5*ib_in -0.5*ic_in);
     float ibeta = (2.0/3.0)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
+//    DacaRegs.DACVALS.all = (ialpha*2000.0/1.0) + 2000;
+//    DacbRegs.DACVALS.all = (ibeta*2000.0/1.0) + 2000;
 
     // Variável auxiliar para integração
     float xka = (valpha - Rs*ialpha);
@@ -57,6 +60,8 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
 
     float phir_alpha_st = (Lr/Lm)*(aux_alpha3 - sigma*Ls*ialpha );
     float phir_beta_st  = (Lr/Lm)*(aux_beta3  - sigma*Ls*ibeta );
+//    DacaRegs.DACVALS.all = (phir_alpha_st*2000.0/2.0) + 2000;
+//    DacbRegs.DACVALS.all = (phir_beta_st*2000.0/2.0) + 2000;
     //DacaRegs.DACVALS.all = phir_beta_st * 1024.0 / 2.0 + 1024;
     //float pos = atan2(phir_alpha_st, phir_beta_st);
     //DacbRegs.DACVALS.all = pos * 1024.0 / 7 + 1024;
