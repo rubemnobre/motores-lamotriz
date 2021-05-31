@@ -632,7 +632,7 @@ __interrupt void timer0_isr(){
 
     if (pin12==1){
         //CAMPO ORIENTADO INDIRETO.
-        float v_controle = refmras;
+        float v_controle = Velo_avg;
         T = ((Llr+Lm)/Rr);
 //        T = (Rr/(Llr+Lm));
         wsl = (ref_kq)/(T*ref_kd);
@@ -854,8 +854,8 @@ __interrupt void timer0_isr(){
 //        ref_kq = iq;
 
 
-        DacaRegs.DACVALS.all = (I_q*2000.0/1.0);
-        DacbRegs.DACVALS.all = (ref_kq*2000.0/1.0);
+//        DacaRegs.DACVALS.all = (I_q*2000.0/1.0);
+//        DacbRegs.DACVALS.all = (ref_kq*2000.0/1.0);
 
         //REFERÊNCIAS EIXO D E Q:
         ref_kd_AD = (int)(1024*ref_kd) + 2048;
@@ -962,13 +962,13 @@ __interrupt void adca1_isr(void){
     Ic_med = AdcbResultRegs.ADCRESULT0;
     Ia_med = AdcaResultRegs.ADCRESULT0;
 
-    Vc_med = AdccResultRegs.ADCRESULT1;
+    Va_med = AdccResultRegs.ADCRESULT1;
     Vb_med = AdcbResultRegs.ADCRESULT1;
-    Va_med = AdcdResultRegs.ADCRESULT1;
+    Vc_med = AdcdResultRegs.ADCRESULT1;
 
-    va = Va_med * 250.0/580.0;
-    vb = Vb_med * 250.0/580.0;
-    vc = Vc_med * 250.0/580.0;
+    va = Va_med * 250.0/670.0;
+    vb = Vb_med * 250.0/670.0;
+    vc = Vc_med * 250.0/670.0;
 
     // Ganho do ADC * Ganho do sensor;
     ic = (Ic_med - Ic_med0)/gc;
@@ -987,13 +987,13 @@ __interrupt void adca1_isr(void){
     ib = ib_filt;
     ic = ic_filt;
 
-    refmras = -ref_MRAS(va, vb, vc, ia, ib, ic, 0)*0.85 + 290;
+    refmras = -ref_MRAS(vc_obs, vb_obs, va_obs, ia, ib, ic, 0)*0.8 + 200;
 
-//    DacaRegs.DACVALS.all = ref_Velo_AD;
-//    DacbRegs.DACVALS.all = refmras * 2.048;
+    DacaRegs.DACVALS.all = Velo_avg * 2.048;
+    DacbRegs.DACVALS.all = refmras * 2.048;
 //
-//    DacaRegs.DACVALS.all = (id_ma*2048.0/2.0) + 1024;
-//    DacbRegs.DACVALS.all = (iq_ma*2048.0/2.0) + 1024;
+//    DacaRegs.DACVALS.all = (va_obs*2048.0/2.0) + 1024;
+//    DacbRegs.DACVALS.all = (vb_obs*2048.0/2.0) + 1024;
 
     GpioDataRegs.GPADAT.bit.GPIO15 = 0;
     AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear INT1 flag

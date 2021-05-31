@@ -20,9 +20,10 @@ float aux_alpha2 = 0, aux_alpha3 = 0, aux_beta2 = 0, aux_beta3 = 0;
 float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in, float Velo){
     // Transformação de clarke de v
     // Mudanças: valpha e vbeta trocados e mecanismo de adaptação
-    float vbeta = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
-    float valpha = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
-
+    float valpha = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
+    float vbeta = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
+//    DacaRegs.DACVALS.all = (vbeta*2000.0/250.0);
+//    DacbRegs.DACVALS.all = (valpha*2000.0/250.0);
 
     // Transformação de clarke de i
     float ialpha = (2.0/3.0)*(ia_in - 0.5*ib_in -0.5*ic_in);
