@@ -630,7 +630,7 @@ __interrupt void timer0_isr(){
         //CAMPO ORIENTADO INDIRETO.
         T = ((Llr+Lm)/Rr);
         wsl = (ref_kq)/(ref_kd*T);
-        w_tot = wsl + refsmo*DPI/60.0;
+        w_tot = wsl + Velo_avg*DPI/60.0;
         //w_tot = wsl + w_avg;
 
         theta_atual = ((160E-006)*w_tot) + theta_ant; // Integrador discreto.
@@ -734,9 +734,9 @@ __interrupt void timer0_isr(){
             if(ref==5){
                 t = 0.096*cont_velo_aux;
                 if(t >= 5){
-                    ref_Velo = 1000;
+                    ref_Velo = 800;
                 }else{
-                    ref_Velo = 500;
+                    ref_Velo = 600;
                 }
                 cont_velo_aux++;
                 if(t>=10){
@@ -762,7 +762,7 @@ __interrupt void timer0_isr(){
 
             //double kp = 0.0002;
             //double ki = 1.99e-4;
-            float v_controle = refsmo;
+            float v_controle = Velo_avg;
             erro_Velo = ref_Velo - v_controle;
             ref_kq = ref_kq_ant + ki*erro_Velo_ant1 + kp*erro_Velo;
             erro_Velo_ant1 = erro_Velo;
@@ -848,8 +848,8 @@ __interrupt void timer0_isr(){
 
 //        DacaRegs.DACVALS.all = (I_d*2048.0/1.0);
 //        DacbRegs.DACVALS.all = (I_q*2048.0/1.0);
-        DacbRegs.DACVALS.all = (I_d*2000.0/1.0);
-        DacaRegs.DACVALS.all = (I_q*2000.0/1.0);
+//        DacbRegs.DACVALS.all = (ref_kq*2000.0/1.0);
+//        DacaRegs.DACVALS.all = (I_q*2000.0/1.0);
 
         //REFERÊNCIAS EIXO D E Q:
         ref_kd_AD = (int)(1024*ref_kd) + 2048;
@@ -952,9 +952,9 @@ __interrupt void adca1_isr(void){
     Ic_med = AdcbResultRegs.ADCRESULT0;
     Ia_med = AdcaResultRegs.ADCRESULT0;
 
-    Vc_med = AdccResultRegs.ADCRESULT1;
+    Va_med = AdccResultRegs.ADCRESULT1;
     Vb_med = AdcbResultRegs.ADCRESULT1;
-    Va_med = AdcdResultRegs.ADCRESULT1;
+    Vc_med = AdcdResultRegs.ADCRESULT1;
 
     va = Va_med * 250.0/580.0;
     vb = Vb_med * 250.0/580.0;
@@ -981,8 +981,8 @@ __interrupt void adca1_isr(void){
 
     refsmo = ref_SMO(va, vb, vc, ia, ib, ic)*5.65;//*5.0 + 1200;//*1.2 + 120.0;
 ////
-//    DacaRegs.DACVALS.all = ref_Velo_AD;
-//    DacbRegs.DACVALS.all = refsmo * 2.048;
+    DacaRegs.DACVALS.all = refsmo * 2.048;
+    DacbRegs.DACVALS.all = Velo_avg * 2.048;
 
     GpioDataRegs.GPADAT.bit.GPIO15 = 0;
 }
