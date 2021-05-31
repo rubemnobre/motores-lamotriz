@@ -632,7 +632,7 @@ __interrupt void timer0_isr(){
 
     if (pin12==1){
         //CAMPO ORIENTADO INDIRETO.
-        float v_controle = Velo_avg;
+        float v_controle = refmras;
         T = ((Llr+Lm)/Rr);
 //        T = (Rr/(Llr+Lm));
         wsl = (ref_kq)/(T*ref_kd);
