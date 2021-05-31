@@ -734,9 +734,9 @@ __interrupt void timer0_isr(){
             if(ref==5){
                 t = 0.096*cont_velo_aux;
                 if(t >= 5){
-                    ref_Velo = 800;
+                    ref_Velo = 500;
                 }else{
-                    ref_Velo = 600;
+                    ref_Velo = 1000;
                 }
                 cont_velo_aux++;
                 if(t>=10){
@@ -979,7 +979,7 @@ __interrupt void adca1_isr(void){
     ib = ib_filt;
     ic = ic_filt;
 
-    refsmo = ref_SMO(va, vb, vc, ia, ib, ic)*5.65;//*5.0 + 1200;//*1.2 + 120.0;
+    refsmo = -ref_SMO(vc_obs, vb_obs, va_obs, ia, ib, ic)*5.3 + 70;//*5.0 + 1200;//*1.2 + 120.0;
 ////
     DacaRegs.DACVALS.all = refsmo * 2.048;
     DacbRegs.DACVALS.all = Velo_avg * 2.048;
