@@ -627,10 +627,11 @@ __interrupt void timer0_isr(){
     //INÍCIO DA MALHA DE CONTROLE.
 
     if (pin12==1){
+        float v_controle = refsmo;
         //CAMPO ORIENTADO INDIRETO.
         T = ((Llr+Lm)/Rr);
         wsl = (ref_kq)/(ref_kd*T);
-        w_tot = wsl + Velo_avg*DPI/60.0;
+        w_tot = wsl + v_controle*DPI/60.0;
         //w_tot = wsl + w_avg;
 
         theta_atual = ((160E-006)*w_tot) + theta_ant; // Integrador discreto.
@@ -762,7 +763,6 @@ __interrupt void timer0_isr(){
 
             //double kp = 0.0002;
             //double ki = 1.99e-4;
-            float v_controle = Velo_avg;
             erro_Velo = ref_Velo - v_controle;
             ref_kq = ref_kq_ant + ki*erro_Velo_ant1 + kp*erro_Velo;
             erro_Velo_ant1 = erro_Velo;
