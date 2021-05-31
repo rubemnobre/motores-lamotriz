@@ -105,7 +105,7 @@ float wa = 0;
 //float e_flux_ant = 0;
 //float ref_kd_ant = 0;
 float V_a = 0, V_b = 0, V_c = 0;
-float va_obs = 0, vb_obs = 0, vc_obs = 0, ia_obs = 0, ib_obs = 0, ic_obs = 0, refsmo = 0, iq = 0.5;
+float va_obs = 0, vb_obs = 0, vc_obs = 0, ia_obs = 0, ib_obs = 0, ic_obs = 0, refekf = 0, iq = 0.5;
 int n_degrau = 0;
 // FUNCTIONS
 void InitEPwmS(void);
@@ -121,11 +121,11 @@ __interrupt void epwm2_isr(void);
 __interrupt void epwm3_isr(void);
 __interrupt void timer0_isr(void);
 __interrupt void eqep1_isr(void);
-float ref_SMO(float, float, float, float, float, float);
+float ref_EKF(float, float, float, float, float, float);
 // MAIN
 void main(void){
     //INICIALIZAÇÃO DO CONTROLE DO SISTEMA.
-     InitSysCtrl();
+       InitSysCtrl();
     //1 ib
     //2 ic
     //0 ia
@@ -363,7 +363,7 @@ void InitEPwmS(){
     EPwm3Regs.ETPS.bit.INTPRD = 1;
 }
 
-const int vpeak = 250;
+const int vpeak = 500;
 
 int epwm1_high = 0;
 __interrupt void epwm1_isr(){
@@ -623,14 +623,15 @@ __interrupt void timer0_isr(){
         Velo_ant1 = Velo_avg;
 
 
-    //refsmo = ref_MRAS(va_obs, vb_obs, vc_obs, ia, ib, ic);
+    //refekf = ref_MRAS(va_obs, vb_obs, vc_obs, ia, ib, ic);
     //INÍCIO DA MALHA DE CONTROLE.
 
     if (pin12==1){
+        float v_controle = refekf;
         //CAMPO ORIENTADO INDIRETO.
         T = ((Llr+Lm)/Rr);
         wsl = (ref_kq)/(ref_kd*T);
-        w_tot = wsl + Velo_avg*DPI/60.0;
+        w_tot = wsl + v_controle*DPI/60.0;
         //w_tot = wsl + w_avg;
 
         theta_atual = ((160E-006)*w_tot) + theta_ant; // Integrador discreto.
@@ -762,7 +763,6 @@ __interrupt void timer0_isr(){
 
             //double kp = 0.0002;
             //double ki = 1.99e-4;
-            float v_controle = Velo_avg;
             erro_Velo = ref_Velo - v_controle;
             ref_kq = ref_kq_ant + ki*erro_Velo_ant1 + kp*erro_Velo;
             erro_Velo_ant1 = erro_Velo;
@@ -848,8 +848,8 @@ __interrupt void timer0_isr(){
 
 //        DacaRegs.DACVALS.all = (I_d*2048.0/1.0);
 //        DacbRegs.DACVALS.all = (I_q*2048.0/1.0);
-//        DacbRegs.DACVALS.all = (ref_kq*2000.0/1.0);
-//        DacaRegs.DACVALS.all = (I_q*2000.0/1.0);
+        DacbRegs.DACVALS.all = (ref_kq*2000.0/1.0);
+        DacaRegs.DACVALS.all = (I_q*2000.0/1.0);
 
         //REFERÊNCIAS EIXO D E Q:
         ref_kd_AD = (int)(1024*ref_kd) + 2048;
@@ -940,6 +940,7 @@ __interrupt void timer0_isr(){
 
 float ia_filt = 0, ib_filt = 0, ic_filt = 0;
 float ga = 680, gb = 560, gc = 500;
+int cont_obs = 0;
 __interrupt void adca1_isr(void){
     AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear INT1 flag
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
@@ -979,10 +980,15 @@ __interrupt void adca1_isr(void){
     ib = ib_filt;
     ic = ic_filt;
 
-    refsmo = -ref_SMO(vc_obs, vb_obs, va_obs, ia, ib, ic)*5.3 + 70;//*5.0 + 1200;//*1.2 + 120.0;
-////
-    DacaRegs.DACVALS.all = refsmo * 2.048;
-    DacbRegs.DACVALS.all = Velo_avg * 2.048;
+    if(cont_obs == 3){
+//        refekf = -ref_EKF(vc_obs, vb_obs, va_obs, ia, ib, ic)*3.5 + 200;//*5.0 + 1200;//*1.2 + 120.0;
+        refekf = -ref_EKF(vc_obs, vb_obs, va_obs, ia, ib, ic)*6 + 000;//*5.0 + 1200;//*1.2 + 120.0;
+        cont_obs = 0;
+    }
+    cont_obs++;
+//
+//    DacaRegs.DACVALS.all = refekf * 2.048;
+//    DacbRegs.DACVALS.all = Velo_avg * 2.048;
 
     GpioDataRegs.GPADAT.bit.GPIO15 = 0;
 }

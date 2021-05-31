@@ -99,7 +99,7 @@ float ref_MRAS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, 
 // Declaracoes para o observador SMO
 float dialpha_est = 0, dibeta_est = 0, ialpha_est = 0, ibeta_est = 0, qalpha = 0, qbeta = 0, salpha = 1, sbeta = 1, salphak1 = 0, sbetak1 = 0, dflux_est_alpha = 0, dflux_est_beta= 0, flux_est_alpha= 0, flux_est_beta= 0, dqalpha = 0, dqbeta = 0;
 
-float y1alpha = 0, y1beta = 0, y2alpha = 0, y2beta = 0, zalpha = 0, zbeta = 0;  // variáveis para integração das correntes
+float ialphaalpha = 0, ialphabeta = 0, ibetaalpha = 0, ibetabeta = 0, zalpha = 0, zbeta = 0;  // variáveis para integração das correntes
 float wfiltro = 0, dfilt = 0;
 
 float int_sa = 0;
@@ -110,7 +110,7 @@ int i_D = 0;
 float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in){ // Observador de fluxo rotórico e de velocidade por modos deslizantes
 
 
-
+    GpioDataRegs.GPADAT.bit.GPIO15 = 1;
 // Transformação de eixos de referência (invariante em amplitude)
     float vbeta = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
     float valpha = -(2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
@@ -171,8 +171,8 @@ float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
     float m1 = 9.996001e-01, m2 = 3.199360e-06, m3 = 9.996001e-01, m4 = 3.999200e-04, sat = 0.2; // wc = 125
 
 
-                y1alpha = m1*y1alpha +  m2*dflux_est_alpha;
-                y1beta  = m1*y1beta  + m2*dflux_est_beta;
+                ialphaalpha = m1*ialphaalpha +  m2*dflux_est_alpha;
+                ialphabeta  = m1*ialphabeta  + m2*dflux_est_beta;
                 zalpha = flux_est_alpha;
                 zbeta = flux_est_beta;
                 if(flux_est_alpha >= sat) zalpha = sat;
@@ -180,11 +180,11 @@ float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
                 if(flux_est_beta >= sat) zbeta = sat;
                 if(flux_est_beta <= -sat) zbeta = -sat;
 
-                y2alpha = m3*y2alpha + m4*zalpha;
-                y2beta  = m3*y2beta  + m4*zbeta;
+                ibetaalpha = m3*ibetaalpha + m4*zalpha;
+                ibetabeta  = m3*ibetabeta  + m4*zbeta;
 
-                flux_est_alpha = (y1alpha + y2alpha);
-                flux_est_beta  = (y1beta  + y2beta);
+                flux_est_alpha = (ialphaalpha + ibetaalpha);
+                flux_est_beta  = (ialphabeta  + ibetabeta);
 
 //                DacaRegs.DACVALS.all = (flux_est_alpha*2000.0/1.0) + 2000;
 //                DacbRegs.DACVALS.all = (flux_est_beta*2000.0/1.0) + 2000;
@@ -250,6 +250,7 @@ float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 //    for(i = 0; i < 10; i++){
 //        media_D = media_D + valores_D[i]/10.0;
 //    }
+     GpioDataRegs.GPADAT.bit.GPIO15 = 0;
     return (60.0/DPI)*wfiltro/dfilt;
 }
 
@@ -259,241 +260,209 @@ float ref_SMO(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 
 int init = 1;
 
-static float Phat[25];
-static float xkhat[5];
+// Iniciando xhat
+float xh1 = 1, xh2 = 1, xh3 = 1, xh4 = 1, xh5 = 1, xt1 = 0, xt2 = 0, xt3 = 0, xt4 = 0, xt5 = 0;
+
+// Iniciando Phat
+float ph11 = 0, ph12 = 0, ph13 = 0, ph14 = 0, ph15 = 0;
+float ph21 = 0, ph22 = 0, ph23 = 0, ph24 = 0, ph25 = 0;
+float ph31 = 0, ph32 = 0, ph33 = 0, ph34 = 0, ph35 = 0;
+float ph41 = 0, ph42 = 0, ph43 = 0, ph44 = 0, ph45 = 0;
+float ph51 = 0, ph52 = 0, ph53 = 0, ph54 = 0, ph55 = 0;
+
+// Iniciando Ptil
+float pt11 = 0, pt12 = 0, pt13 = 0, pt14 = 0, pt15 = 0;
+float pt21 = 0, pt22 = 0, pt23 = 0, pt24 = 0, pt25 = 0;
+float pt31 = 0, pt32 = 0, pt33 = 0, pt34 = 0, pt35 = 0;
+float pt41 = 0, pt42 = 0, pt43 = 0, pt44 = 0, pt45 = 0;
+float pt51 = 0, pt52 = 0, pt53 = 0, pt54 = 0, pt55 = 0;
 
 float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in){ // Observador de fluxo rotórico e de velocidade filtro de Kalman estendido
-    if(init){
-        int i;
-        static const float fv2[25] = { 1e6, 0, 0, 0, 0,
-                                       0, 1e6, 0, 0, 0,
-                                       0, 0, 1e6, 0, 0,
-                                       0, 0, 0, 1e6, 0,
-                                       0, 0, 0, 0, 1e6};
+    // Transformação de clarke de v
+    // Mudanças: valpha e vbeta trocados e mecanismo de adaptação
+    float valpha = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
+    float vbeta = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
 
-        for (i = 0; i < 25; i++){
-            Phat[i] = fv2[i];
-        }
+    // Transformação de clarke de i
+    float ialpha = (2.0/3.0)*(ia_in - 0.5*ib_in -0.5*ic_in);
+    float ibeta = (2.0/3.0)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
+//
+//    DacaRegs.DACVALS.all = (ialpha*2000.0/1.0) + 2000.0;
+//    DacbRegs.DACVALS.all = (ibeta*2000.0/1.0) + 2000.0;
+    // Iniciando gk
+    float k11 = 0, k21 = 0, k31 = 0, k41 = 0, k51 = 0, k12 = 0, k22 = 0, k32 = 0, k42 = 0, k52 = 0;
 
-        for (i = 0; i < 5; i++){
-            xkhat[i] = 0;
-        }
-        init = 0;
-    }
+    // Matriz A
+    float a11 = (1 - Ts/Tlinha);                 //( = 0.998891379207670)
+    float a13 = ((Ts*Lm)/(sigma*Ls*Lr*Tr));      //( = 8.000435870123950e-04)
+    float a14 = ((2*xh5*Ts*Lm)/(sigma*Ls*Lr));     //( = 9.552213001383126e-06*2*xh5)  xh5 entra em A
+    float a22 = (1 - Ts/Tlinha);                 //( = 0.998891379207670)
+    float a23 = ((-2*xh5*Ts*Lm)/(sigma*Ls*Lr));    //( = 9.552213001383126e-06*2*xh5)  xh5 entra em A
+    float a24 = ((Ts*Lm)/(sigma*Ls*Lr*Tr));      //( =  8.000435870123950e-04)
+    float a31 = (Ts*Lm/Tr);                      //( = 2.467974457215837e-04)
+    float a33 = (1 - Ts/Tr);                     //( = 0.999720817369093)
+    float a34 = -Ts*2*xh5;                         //( = -3.333333333333333e-06*2*xh5) xh5 entra em A
+    float a42 = (Ts*Lm/Tr);                      //( = 2.467974457215837e-04)
+    float a43 =  Ts*2*xh5;                         //( = 3.333333333333333e-06*2*xh5)  xh5 entra em A
+    float a44 = (1 - Ts/Tr);                     //( = 0.999720817369093)
 
-    // Transformação de eixos de referência (invariante em amplitude)
-    float valpha = (2/3)*(va_in - 0.5*vb_in - 0.5*vc_in);
-    float vbeta  = -(2/3)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
+    // Matriz B
+    float b11 = (Ts/(sigma*Ls));
+    float b22 = (Ts/(sigma*Ls));
 
-    float ialpha = (2/3)*(ia_in -0.5*ib_in - 0.5*ic_in);
-    float ibeta  = -(2/3)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
+    // Matriz Q
+    float q1 = 1e-6;
+    float q2 = q1, q3 = q1, q4 = q1, q5 = 0.5*q1*1e3;
 
-    float omega1;
-    float Gk[25];
-    int r1;
-    float b_va[2];
-    static const int iv0[5] = { 0, 0, 0, 0, 1 };
+    // Matriz R
+    float r11 = 1, r22 = 1;
 
-    float xktil[5];
-    float fv0[5];
-    int r2;
-    float b_Gk[25];
-    float a[5];
-    static const float b_a[10] = { 5.64055972E-6, 0, 0, 0, 0,
-                                   0, 5.64055972E-6, 0, 0, 0 };
+    //=========== EKF ==================
 
-    float c[4];
-    int k;
-    float kk[10];
-    float b_c[10];
-    float a22;
-    static const int c_a[10] = { 1, 0, 0, 1, 0,
-                                 0, 0, 0, 0, 0 };
+    // Predição
+    // 1) variáveis de estado
+    // xtil = A*xhat + B*u;
 
-    float Ptil[25];
-    static const float fv1[25] = { 1E-6, 0, 0, 0, 0,
-                                   0, 1E-6, 0, 0, 0,
-                                   0, 0, 1E-6, 0, 0,
-                                   0, 0, 0, 1E-6, 0,
-                                   0, 0, 0, 0, 1e-3 };
+    // Traduzindo
+    xt1 = b11*valpha + a11*xh1 + a13*xh3 + a14*xh4;
+    xt2 = b22*vbeta + a22*xh2 + a23*xh3 + a24*xh4;
+    xt3 = a31*xh1 + a33*xh3 + a34*xh4;
+    xt4 = a42*xh2 + a43*xh3 + a44*xh4;
+    xt5 = xh5;
 
-    static const int iv1[4] = { 2, 0, 0, 2 };
 
-    static const int b[10] = { 1, 0, 0, 0, 0,
-                               0, 1, 0, 0, 0};
+    // Matriz G
+    float g11 = (1 - Ts/Tlinha);                    //( = 0.998891379207670)
 
-    float d_a[2];
-    float b_ia[2];
+    float g13 = ((Ts*Lm)/(sigma*Ls*Lr*Tr));         //( = 8.000435870123950e-04)
+    float g14 = ((Ts*Lm)/(sigma*Ls*Lr)) * (2*xt5);  //( = 9.552213001383126e-06*2*xt5)  xt5 entra na matriz G (velocidade)
+    float g15 = ((Ts*Lm)/(sigma*Ls*Lr)) * (xt4);    //( = 9.552213001383126e-06*xt4)    xt4 entra na matriz G (phi_beta)
 
-    static const int iv2[25] = { 1, 0, 0, 0, 0,
-                                 0, 1, 0, 0, 0,
-                                 0, 0, 1, 0, 0,
-                                 0, 0, 0, 1, 0,
-                                 0, 0, 0, 0, 1};
+    float g22 = (1-Ts/Tlinha);                      //( = 0.998891379207670)
+    float g23 = ((Ts*Lm)/(sigma*Ls*Lr)) * (-2*xt5); //( = 9.552213001383126e-06*-2*xt5) xt5 entra na matriz G (velocidade)
+    float g24 = ((Ts*Lm)/(sigma*Ls*Lr*Tr));         //( = 8.000435870123950e-04)
+    float g25 = ((-Ts*Lm)/(sigma*Ls*Lr)) * (xt3);   //( = -9.552213001383126e-06*xt3) xt3 entra na matriz G (phi_alpha)
+    float g31 = (Ts*Lm/Tr);                         //( = 2.467974457215837e-04)
 
-    omega1 = 2 * xkhat[4];
+    float g33 =  (1 - Ts/Tr);                       //( = 0.999720817369093)
+    float g34 = -Ts * (2*xt5);                      //( = -3.333333333333333e-06*2*xt5) xt5 entra na matriz G (velocidade)
+    float g35 = -Ts * (xt4);                        //( = -3.333333333333333e-06*xt4) xt4 entra na matriz G (phi_beta)
 
-    Gk[0] = 0.999445677;
-    Gk[5] = 0;
-    Gk[10] = 0.00040002176;
-    Gk[15] = omega1 * 1.66666666E-6 * 0.884 / 0.308480024;
-    Gk[20] = 0;
-    Gk[1] = 0;
-    Gk[6] = 0.999445677;
-    Gk[11] = -omega1 * 1.66666666E-6 * 0.884 / 0.308480024;
-    Gk[16] = 0.00040002176;
-    Gk[21] = 0;
-    Gk[2] = 0.000123398713;
-    Gk[7] = 0;
-    Gk[12] = 0.999860406;
-    Gk[17] = -1.66666666E-6 * omega1;
-    Gk[22] = 0;
-    Gk[3] = 0;
-    Gk[8] = 0.000123398713;
-    Gk[13] = 1.66666666E-6 * omega1;
-    Gk[18] = 0.999860406;
-    Gk[23] = 0;
 
-    for (r1 = 0; r1 < 5; r1++) {
-        Gk[4 + 5 * r1] = iv0[r1];
-    }
+    float g42 = Ts*Lm/Tr;                           //( = 2.467974457215837e-04)
+    float g43 = Ts * (2*xt5);                       //( = 3.333333333333333e-06*2*xt5) xt5 entra na matriz G (velocidade)
+    float g44 = (1 - Ts/Tr);                        //( = 0.999720817369093)
+    float g45 = Ts * (xt3);                         //( = 3.333333333333333e-06*xt3) xt3 entra na matriz G (phi_alpha)
 
-    b_va[0] = valpha;
-    b_va[1] = vbeta;
-    for (r1 = 0; r1 < 5; r1++) {
-        fv0[r1] = 0;
-        for (r2 = 0; r2 < 5; r2++) {
-            fv0[r1] += Gk[r1 + 5 * r2] * xkhat[r2];
-        }
-        a[r1] = 0;
-        for (r2 = 0; r2 < 2; r2++) {
-            a[r1] += b_a[r1 + 5 * r2] * b_va[r2];
-        }
-        xktil[r1] = fv0[r1] + a[r1];
-        b_Gk[4 + 5 * r1] = iv0[r1];
-    }
 
-    omega1 = 2 * xktil[4];
 
-    /*  cálculo de G */
-    b_Gk[0] = 0.999445677;
-    b_Gk[5] = 0;
-    b_Gk[10] = 0.00040002176;
-    b_Gk[15] = omega1 * 1.66666666E-6 * 0.884 / 0.308480024;
-    b_Gk[20] = 1.47333333E-6 * xktil[3] / 0.308480024;
-    b_Gk[1] = 0;
-    b_Gk[6] = 0.999445677;
-    b_Gk[11] = -omega1 * 1.66666666E-6 * 0.884 / 0.308480024;
-    b_Gk[16] = 0.00040002176;
-    b_Gk[21] = -1.47333333E-6 * xktil[2] / 0.308480024;
-    b_Gk[2] = 0.000123398713;
-    b_Gk[7] = 0;
-    b_Gk[12] = 0.999860406;
-    b_Gk[17] = -1.66666666E-6 * omega1;
-    b_Gk[22] = -1.66666666E-6 * xktil[3];
-    b_Gk[3] = 0;
-    b_Gk[8] = 0.000123398713;
-    b_Gk[13] = 1.66666666E-6 * omega1;
-    b_Gk[18] = 0.999860406;
-    b_Gk[23] = 1.66666666E-6 * xktil[2];
+    // 2) covariância do erro
+    // Ptil = G*Phat*G'+ Q;
 
-    /*  2) covariância do erro */
-    /*  3) ganho de Kalman */
-    for (r1 = 0; r1 < 5; r1++) {
-        for (r2 = 0; r2 < 5; r2++) {
-            Gk[r1 + 5 * r2] = 0;
-            for (k = 0; k < 5; k++) {
-                Gk[r1 + 5 * r2] += b_Gk[r1 + 5 * k] * Phat[k + 5 * r2];
-            }
-        }
+    // Traduzindo
+    pt11 = q1 + g11*(g11*ph11 + g13*ph31 + g14*ph41 + g15*ph51) + g13*(g11*ph13 + g13*ph33 + g14*ph43 + g15*ph53) + g14*(g11*ph14 + g13*ph34 + g14*ph44 + g15*ph54) + g15*(g11*ph15 + g13*ph35 + g14*ph45 + g15*ph55);
+    pt12 = g22*(g11*ph12 + g13*ph32 + g14*ph42 + g15*ph52) + g23*(g11*ph13 + g13*ph33 + g14*ph43 + g15*ph53) + g24*(g11*ph14 + g13*ph34 + g14*ph44 + g15*ph54) + g25*(g11*ph15 + g13*ph35 + g14*ph45 + g15*ph55);
+    pt13 = g31*(g11*ph11 + g13*ph31 + g14*ph41 + g15*ph51) + g33*(g11*ph13 + g13*ph33 + g14*ph43 + g15*ph53) + g34*(g11*ph14 + g13*ph34 + g14*ph44 + g15*ph54) + g35*(g11*ph15 + g13*ph35 + g14*ph45 + g15*ph55);
+    pt14 = g42*(g11*ph12 + g13*ph32 + g14*ph42 + g15*ph52) + g43*(g11*ph13 + g13*ph33 + g14*ph43 + g15*ph53) + g44*(g11*ph14 + g13*ph34 + g14*ph44 + g15*ph54) + g45*(g11*ph15 + g13*ph35 + g14*ph45 + g15*ph55);
+    pt15 = g11*ph15 + g13*ph35 + g14*ph45 + g15*ph55;
 
-        for (r2 = 0; r2 < 5; r2++) {
-            omega1 = 0;
-            for (k = 0; k < 5; k++) {
-                omega1 += Gk[r1 + 5 * k] * b_Gk[r2 + 5 * k];
-            }
-            Ptil[r1 + 5 * r2] = omega1 + fv1[r1 + 5 * r2];
-        }
+    pt21 = g11*(g22*ph21 + g23*ph31 + g24*ph41 + g25*ph51) + g13*(g22*ph23 + g23*ph33 + g24*ph43 + g25*ph53) + g14*(g22*ph24 + g23*ph34 + g24*ph44 + g25*ph54) + g15*(g22*ph25 + g23*ph35 + g24*ph45 + g25*ph55);
+    pt22 = q2 + g22*(g22*ph22 + g23*ph32 + g24*ph42 + g25*ph52) + g23*(g22*ph23 + g23*ph33 + g24*ph43 + g25*ph53) + g24*(g22*ph24 + g23*ph34 + g24*ph44 + g25*ph54) + g25*(g22*ph25 + g23*ph35 + g24*ph45 + g25*ph55);
+    pt23 = g31*(g22*ph21 + g23*ph31 + g24*ph41 + g25*ph51) + g33*(g22*ph23 + g23*ph33 + g24*ph43 + g25*ph53) + g34*(g22*ph24 + g23*ph34 + g24*ph44 + g25*ph54) + g35*(g22*ph25 + g23*ph35 + g24*ph45 + g25*ph55);
+    pt24 = g42*(g22*ph22 + g23*ph32 + g24*ph42 + g25*ph52) + g43*(g22*ph23 + g23*ph33 + g24*ph43 + g25*ph53) + g44*(g22*ph24 + g23*ph34 + g24*ph44 + g25*ph54) + g45*(g22*ph25 + g23*ph35 + g24*ph45 + g25*ph55);
+    pt25 = g22*ph25 + g23*ph35 + g24*ph45 + g25*ph55;
 
-        for (r2 = 0; r2 < 2; r2++) {
-            b_c[r1 + 5 * r2] = 0;
-            for (k = 0; k < 5; k++) {
-                b_c[r1 + 5 * r2] += Ptil[r1 + 5 * k] * (float)b[k + 5 * r2];
-            }
-        }
-    }
+    pt31 = g11*(g31*ph11 + g33*ph31 + g34*ph41 + g35*ph51) + g13*(g31*ph13 + g33*ph33 + g34*ph43 + g35*ph53) + g14*(g31*ph14 + g33*ph34 + g34*ph44 + g35*ph54) + g15*(g31*ph15 + g33*ph35 + g34*ph45 + g35*ph55);
+    pt32 = g22*(g31*ph12 + g33*ph32 + g34*ph42 + g35*ph52) + g23*(g31*ph13 + g33*ph33 + g34*ph43 + g35*ph53) + g24*(g31*ph14 + g33*ph34 + g34*ph44 + g35*ph54) + g25*(g31*ph15 + g33*ph35 + g34*ph45 + g35*ph55);
+    pt33 = q3 + g31*(g31*ph11 + g33*ph31 + g34*ph41 + g35*ph51) + g33*(g31*ph13 + g33*ph33 + g34*ph43 + g35*ph53) + g34*(g31*ph14 + g33*ph34 + g34*ph44 + g35*ph54) + g35*(g31*ph15 + g33*ph35 + g34*ph45 + g35*ph55);
+    pt34 = g42*(g31*ph12 + g33*ph32 + g34*ph42 + g35*ph52) + g43*(g31*ph13 + g33*ph33 + g34*ph43 + g35*ph53) + g44*(g31*ph14 + g33*ph34 + g34*ph44 + g35*ph54) + g45*(g31*ph15 + g33*ph35 + g34*ph45 + g35*ph55);
+    pt35 = g31*ph15 + g33*ph35 + g34*ph45 + g35*ph55;
 
-    for (r1 = 0; r1 < 2; r1++) {
-        for (r2 = 0; r2 < 5; r2++) {
-            kk[r1 + (r2 << 1U)] = 0;
-            for (k = 0; k < 5; k++) {
-                kk[r1 + (r2 << 1U)] += (float)c_a[r1 + (k << 1U)] * Ptil[k + 5 * r2];
-            }
-        }
+    pt41 = g11*(g42*ph21 + g43*ph31 + g44*ph41 + g45*ph51) + g13*(g42*ph23 + g43*ph33 + g44*ph43 + g45*ph53) + g14*(g42*ph24 + g43*ph34 + g44*ph44 + g45*ph54) + g15*(g42*ph25 + g43*ph35 + g44*ph45 + g45*ph55);
+    pt42 = g22*(g42*ph22 + g43*ph32 + g44*ph42 + g45*ph52) + g23*(g42*ph23 + g43*ph33 + g44*ph43 + g45*ph53) + g24*(g42*ph24 + g43*ph34 + g44*ph44 + g45*ph54) + g25*(g42*ph25 + g43*ph35 + g44*ph45 + g45*ph55);
+    pt43 = g31*(g42*ph21 + g43*ph31 + g44*ph41 + g45*ph51) + g33*(g42*ph23 + g43*ph33 + g44*ph43 + g45*ph53) + g34*(g42*ph24 + g43*ph34 + g44*ph44 + g45*ph54) + g35*(g42*ph25 + g43*ph35 + g44*ph45 + g45*ph55);
+    pt44 = q4 + g42*(g42*ph22 + g43*ph32 + g44*ph42 + g45*ph52) + g43*(g42*ph23 + g43*ph33 + g44*ph43 + g45*ph53) + g44*(g42*ph24 + g43*ph34 + g44*ph44 + g45*ph54) + g45*(g42*ph25 + g43*ph35 + g44*ph45 + g45*ph55);
+    pt45 = g42*ph25 + g43*ph35 + g44*ph45 + g45*ph55;
 
-        for (r2 = 0; r2 < 2; r2++) {
-            omega1 = 0;
-            for (k = 0; k < 5; k++) {
-                omega1 += kk[r1 + (k << 1U)] * (float)b[k + 5 * r2];
-            }
+    pt51 = g11*ph51 + g13*ph53 + g14*ph54 + g15*ph55;
+    pt52 = g22*ph52 + g23*ph53 + g24*ph54 + g25*ph55;
+    pt53 = g31*ph51 + g33*ph53 + g34*ph54 + g35*ph55;
+    pt54 = g42*ph52 + g43*ph53 + g44*ph54 + g45*ph55;
+    pt55 = ph55 + q5;
 
-            c[r1 + (r2 << 1U)] = omega1 + (float)iv1[r1 + (r2 << 1U)];
-        }
-    }
 
-    if ((float)fabs(c[1]) > (float)fabs(c[0])){
-        r1 = 1;
-        r2 = 0;
-    }else{
-        r1 = 0;
-        r2 = 1;
-    }
 
-    omega1 = c[r2] / c[r1];
-    a22 = c[2 + r2] - omega1 * c[2 + r1];
-    for (k = 0; k < 5; k++) {
-        kk[k + 5 * r1] = b_c[k] / c[r1];
-        kk[k + 5 * r2] = (b_c[5 + k] - kk[k + 5 * r1] * c[2 + r1]) / a22;
-        kk[k + 5 * r1] -= kk[k + 5 * r2] * omega1;
-    }
+    // Etapa de atualização
+    // 3) ganho de Kalman
+    // kk = Ptil*C'*inv(C*Ptil*C'+ R);
 
-    /*  4) Atualização dos estados preditos */
-    b_va[0] = ialpha;
-    b_va[1] = ibeta;
-    for (r1 = 0; r1 < 2; r1++) {
-        d_a[r1] = 0;
-        for (r2 = 0; r2 < 5; r2++) {
-            d_a[r1] += (float)c_a[r1 + (r2 << 1U)] * xktil[r2];
-        }
+    // Traduzindo
+    float det = (pt11*pt22 - pt12*pt21 + pt11*r22 + pt22*r11 + r11*r22);
 
-        b_ia[r1] = b_va[r1] - d_a[r1];
-    }
+    k11 = (1/det)*(pt11*(pt22 + r22)) - (pt12*pt21);
+    k12 = (1/det)*(pt12*(pt11 + r11)) - (pt11*pt12);
 
-    /*  5) Atualização da covariância do erro */
-    for (r1 = 0; r1 < 5; r1++) {
-        omega1 = 0;
-        for (r2 = 0; r2 < 2; r2++) {
-            omega1 += kk[r1 + 5 * r2] * b_ia[r2];
-        }
+    k21 = (1/det)*(pt21*(pt22 + r22)) - (pt21*pt22);
+    k22 = (1/det)*(pt22*(pt11 + r11)) - (pt12*pt21);
 
-        xkhat[r1] = xktil[r1] + omega1;
-        for (r2 = 0; r2 < 5; r2++) {
-            omega1 = 0;
-            for (k = 0; k < 2; k++) {
-                omega1 += kk[r1 + 5 * k] * (float)c_a[k + (r2 << 1U)];
-            }
+    k31 = (1/det)*(pt31*(pt22 + r22)) - (pt21*pt32);
+    k32 = (1/det)*(pt32*(pt11 + r11)) - (pt12*pt31);
 
-            Gk[r1 + 5 * r2] = (float)iv2[r1 + 5 * r2] - omega1;
-        }
+    k41 = (1/det)*(pt41*(pt22 + r22)) - (pt21*pt42);
+    k42 = (1/det)*(pt42*(pt11 + r11)) - (pt12*pt41);
 
-        for (r2 = 0; r2 < 5; r2++) {
-            Phat[r1 + 5 * r2] = 0;
-            for (k = 0; k < 5; k++) {
-                Phat[r1 + 5 * r2] += Gk[r1 + 5 * k] * Ptil[k + 5 * r2];
-            }
-        }
-    }
-    return xktil[4];
+    k51 = (1/det)*(pt51*(pt22 + r22)) - (pt21*pt52);
+    k52 = (1/det)*(pt52*(pt11 + r11)) - (pt12*pt51);
+
+
+    // 4) Atualização dos estados preditos
+    // xhat = xtil + kk*(y - C*xtil);
+
+    // Traduzindo
+    xh1 = xt1 - k11*(xt1 - ialpha) - k12*(xt2 - ibeta);
+    xh2 = xt2 - k21*(xt1 - ialpha) - k22*(xt2 - ibeta);
+    xh3 = xt3 - k31*(xt1 - ialpha) - k32*(xt2 - ibeta);
+    xh4 = xt4 - k41*(xt1 - ialpha) - k42*(xt2 - ibeta);
+    xh5 = xt5 - k51*(xt1 - ialpha) - k52*(xt2 - ibeta);
+
+//    DacaRegs.DACVALS.all = (xh3*2000.0/1.0) + 2000.0;
+//    DacbRegs.DACVALS.all = (xh4*2000.0/1.0) + 2000.0;
+
+    // 5) Atualização da covariância do erro
+    // Phat = (eye(5) - kk*C)*Ptil;
+
+    // Traduzindo
+    ph11 = - k12*pt21 - pt11*(k11 - 1);
+    ph12 = - k12*pt22 - pt12*(k11 - 1);
+    ph13 = - k12*pt23 - pt13*(k11 - 1);
+    ph14 = - k12*pt24 - pt14*(k11 - 1);
+    ph15 = - k12*pt25 - pt15*(k11 - 1);
+
+    ph21 = - k21*pt11 - pt21*(k22 - 1);
+    ph22 = - k21*pt12 - pt22*(k22 - 1);
+    ph23 = - k21*pt13 - pt23*(k22 - 1);
+    ph24 = - k21*pt14 - pt24*(k22 - 1);
+    ph25 = - k21*pt15 - pt25*(k22 - 1);
+
+    ph31 = pt31 - k31*pt11 - k32*pt21;
+    ph32 = pt32 - k31*pt12 - k32*pt22;
+    ph33 = pt33 - k31*pt13 - k32*pt23;
+    ph34 = pt34 - k31*pt14 - k32*pt24;
+    ph35 = pt35 - k31*pt15 - k32*pt25;
+
+    ph41 = pt41 - k41*pt11 - k42*pt21;
+    ph42 = pt42 - k41*pt12 - k42*pt22;
+    ph43 = pt43 - k41*pt13 - k42*pt23;
+    ph44 = pt44 - k41*pt14 - k42*pt24;
+    ph45 = pt45 - k41*pt15 - k42*pt25;
+
+    ph51 = pt51 - k51*pt11 - k52*pt21;
+    ph52 = pt52 - k51*pt12 - k52*pt22;
+    ph53 = pt53 - k51*pt13 - k52*pt23;
+    ph54 = pt54 - k51*pt14 - k52*pt24;
+    ph55 = pt55 - k51*pt15 - k52*pt25;
+
+    return xh5;
 }
 
 #endif

@@ -21,7 +21,7 @@
 
 //Parâmetros do Observador
 #define fsw 6e3            // Frequência de chaveamento
-#define Ts 3.2e-6           // tempo de amostragem do observador 1/(fsw*100)
+#define Ts 3.2e-6*4           // tempo de amostragem do observador 1/(fsw*100)
 #define sigma 0.346442359  // coeficiente total de dispersão 1 - (Lm^2/(Ls*Lr))
 #define Tr 0.011939615     // constante de tempo rotórica (Lr/Rr)
 #define fpb_a 800          // parâmetro para FPB
@@ -45,7 +45,7 @@
 #define gamma1 1
 #define gamma2 1
 
-#define Tlinha 0.003680448
+#define Tlinha 0.0030068
 
 #define sig 0.283025792340101
 #define Kr 0.846743295019157
