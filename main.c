@@ -627,7 +627,7 @@ __interrupt void timer0_isr(){
     //INÍCIO DA MALHA DE CONTROLE.
 
     if (pin12==1){
-        float v_controle = refekf;
+        float v_controle = Velo_avg;
         //CAMPO ORIENTADO INDIRETO.
         T = ((Llr+Lm)/Rr);
         wsl = (ref_kq)/(ref_kd*T);
@@ -847,9 +847,10 @@ __interrupt void timer0_isr(){
 //        ref_kq = iq;
 
 //        DacaRegs.DACVALS.all = (I_d*2048.0/1.0);
-//        DacbRegs.DACVALS.all = (I_q*2048.0/1.0);
+//        DacbRegs.DACVALS.all = (ref_kd*2048.0/1.0);
+        DacaRegs.DACVALS.all = (I_q*2048.0/1.0);
         DacbRegs.DACVALS.all = (ref_kq*2000.0/1.0);
-        DacaRegs.DACVALS.all = (I_q*2000.0/1.0);
+//        DacaRegs.DACVALS.all = (I_q*2000.0/1.0);
 
         //REFERÊNCIAS EIXO D E Q:
         ref_kd_AD = (int)(1024*ref_kd) + 2048;
@@ -982,7 +983,7 @@ __interrupt void adca1_isr(void){
 
     if(cont_obs == 3){
 //        refekf = -ref_EKF(vc_obs, vb_obs, va_obs, ia, ib, ic)*3.5 + 200;//*5.0 + 1200;//*1.2 + 120.0;
-        refekf = -ref_EKF(vc_obs, vb_obs, va_obs, ia, ib, ic)*6 + 000;//*5.0 + 1200;//*1.2 + 120.0;
+        refekf = -ref_EKF(vc_obs, vb_obs, va_obs, ia, ib, ic)*4.45 + 375;//*5.0 + 1200;//*1.2 + 120.0;
         cont_obs = 0;
     }
     cont_obs++;

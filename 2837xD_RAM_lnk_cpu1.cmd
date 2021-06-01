@@ -5,7 +5,7 @@ PAGE 0 :
    /* BEGIN is used for the "boot to SARAM" bootloader mode   */
 
    BEGIN            : origin = 0x000000, length = 0x000002
-   RAMM0            : origin = 0x000123, length = 0x0002DD
+   RAMM0            : origin = 0x000123, length = 0x000300
    RAMD0            : origin = 0x00B000, length = 0x000800
    //RAMLS0           : origin = 0x008000, length = 0x000800
    //RAMLS1           : origin = 0x008800, length = 0x000800
@@ -17,7 +17,7 @@ PAGE 0 :
 PAGE 1 :
 
    BOOT_RSVD       : origin = 0x000002, length = 0x000121     /* Part of M0, BOOT rom will use this for stack */
-   RAMM1           : origin = 0x000400, length = 0x0003F8     /* on-chip RAM block M1 */
+   RAMM1           : origin = 0x000423, length = 0x0003D5     /* on-chip RAM block M1 */
 //   RAMM1_RSVD      : origin = 0x0007F8, length = 0x000008     /* Reserve and do not use for code as per the errata advisory "Memory: Prefetching Beyond Valid Memory" */
    RAMD1           : origin = 0x00B800, length = 0x000800
 
