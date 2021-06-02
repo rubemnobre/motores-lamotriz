@@ -5,18 +5,19 @@ PAGE 0 :
    /* BEGIN is used for the "boot to SARAM" bootloader mode   */
 
    BEGIN            : origin = 0x000000, length = 0x000002
-   RAMM0            : origin = 0x000123, length = 0x000300
+   RAMM0            : origin = 0x000123, length = 0x000350
    RAMD0            : origin = 0x00B000, length = 0x000800
    //RAMLS0           : origin = 0x008000, length = 0x000800
    //RAMLS1           : origin = 0x008800, length = 0x000800
    //RAMLS2           : origin = 0x009000, length = 0x000800
    RAMLS0_4         : origin = 0x008000, length = 0x002800
+   RAMGS15     : origin = 0x01B000, length = 0x000FF8     /* Only Available on F28379D, F28377D, F28375D devices. Remove line on other devices. */
    RESET            : origin = 0x3FFFC0, length = 0x000002
 
 PAGE 1 :
 
    BOOT_RSVD       : origin = 0x000002, length = 0x000121     /* Part of M0, BOOT rom will use this for stack */
-   RAMM1           : origin = 0x000423, length = 0x0003D5     /* on-chip RAM block M1 */
+   RAMM1           : origin = 0x000473, length = 0x000385     /* on-chip RAM block M1 */
 //   RAMM1_RSVD      : origin = 0x0007F8, length = 0x000008     /* Reserve and do not use for code as per the errata advisory "Memory: Prefetching Beyond Valid Memory" */
    RAMD1           : origin = 0x00B800, length = 0x000800
 
@@ -42,7 +43,6 @@ PAGE 1 :
    RAMGS12     : origin = 0x018000, length = 0x001000     /* Only Available on F28379D, F28377D, F28375D devices. Remove line on other devices. */
    RAMGS13     : origin = 0x019000, length = 0x001000     /* Only Available on F28379D, F28377D, F28375D devices. Remove line on other devices. */
    RAMGS14     : origin = 0x01A000, length = 0x001000     /* Only Available on F28379D, F28377D, F28375D devices. Remove line on other devices. */
-   RAMGS15     : origin = 0x01B000, length = 0x000FF8     /* Only Available on F28379D, F28377D, F28375D devices. Remove line on other devices. */
    
 //   RAMGS15_RSVD : origin = 0x01BFF8, length = 0x000008    /* Reserve and do not use for code as per the errata advisory "Memory: Prefetching Beyond Valid Memory" */
                                                             /* Only on F28379D, F28377D, F28375D devices. Remove line on other devices. */
@@ -58,7 +58,7 @@ PAGE 1 :
 SECTIONS
 {
    codestart        : > BEGIN,     PAGE = 0
-   .text            : >> RAMD0 |  RAMLS0_4,   PAGE = 0
+   .text            : >> RAMD0 |  RAMLS0_4 | RAMGS15,   PAGE = 0
    .cinit           : > RAMM0,     PAGE = 0
    .switch          : > RAMM0,     PAGE = 0
    .reset           : > RESET,     PAGE = 0, TYPE = DSECT /* not used, */

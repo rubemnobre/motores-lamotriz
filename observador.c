@@ -277,59 +277,86 @@ float pt31 = 0, pt32 = 0, pt33 = 0, pt34 = 0, pt35 = 0;
 float pt41 = 0, pt42 = 0, pt43 = 0, pt44 = 0, pt45 = 0;
 float pt51 = 0, pt52 = 0, pt53 = 0, pt54 = 0, pt55 = 0;
 
-float aux_alpha = 0, aux_beta = 0, aux_alpha2 = 0, aux_alpha3 = 0, aux_beta2 = 0, aux_beta3 = 0;
+float dialpha_est = 0, dibeta_est = 0, ialpha_est = 0, ibeta_est = 0, qalpha = 0, qbeta = 0, salpha = 1, sbeta = 1, salphak1 = 0, sbetak1 = 0, dflux_est_alpha = 0, dflux_est_beta= 0, flux_est_alpha= 0, flux_est_beta= 0, dqalpha = 0, dqbeta = 0;
+
+float y1alpha = 0, y1beta = 0, y2alpha = 0, y2beta = 0, zalpha = 0, zbeta = 0;  // variáveis para integração das correntes
 
 float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in){ // Observador de fluxo rotórico e de velocidade filtro de Kalman estendido
     // Transformação de clarke de v
     // Mudanças: valpha e vbeta trocados e mecanismo de adaptação
-    float valpha = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
-    float vbeta = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
+    float vbeta = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
+    float valpha = -(2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
 
     // Transformação de clarke de i
     float ialpha = (2.0/3.0)*(ia_in - 0.5*ib_in -0.5*ic_in);
-    float ibeta = (2.0/3.0)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
-//    DacaRegs.DACVALS.all = 1*(ialpha * 2000.0 / 1.0) + 2000; // Amarelo
-//    DacbRegs.DACVALS.all = 1*(ibeta * 2000.0 / 1.0) + 2000; // Azul
+    float ibeta = -(2.0/3.0)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
 
-    float xka = (valpha - Rs*ialpha);
-    float xkb = (vbeta - Rs*ibeta);
+    dialpha_est = qalpha - k1*ialpha_est + k2*valpha;
+    dibeta_est  = qbeta  - k1*ibeta_est  + k2*vbeta;
 
-    // Integração pura
-    //    aux_alpha = aux_alpha + (Ts/2)*xka + (Ts/2)*xka1;
-    //    aux_beta  = aux_beta  + (Ts/2)*xkb + (Ts/2)*xkb1;
-    //
-    //    float phir_alpha_st = (Lr/Lm)*(aux_alpha - sigma*Ls*ialpha );
-    //    float phir_beta_st  = (Lr/Lm)*(aux_beta  - sigma*Ls*ibeta );
+    // Integração da corrente
+    ialpha_est = ialpha_est + Ts*(dialpha_est);
+    ibeta_est  = ibeta_est  + Ts*(dibeta_est);
 
-    // Integração do fluxo com correção
-//    float g1 = 9.993602e-01, g2 = 3.198976e-06, g3 = 9.993602e-01, g4 = 6.397952e-04;
-//    float g1 = 9.987208e-01, g2 = 1.279181e-05, g3 = 9.987208e-01, g4 = 1.279181e-03; // wc = 100
-//    float g1 = 9.993602e-01, g2 = 1.279590e-05, g3 = 9.993602e-01, g4 = 6.397952e-04; // wc = 50
-//    float g1 = 9.998720e-01, g2 = 1.279918e-05, g3 = 9.998720e-01, g4 = 1.279918e-04; // wc = 10
-//    float g1 = 9.936204e-01, g2 = 1.275913e-05, g3 = 9.936204e-01, g4 = 6.379564e-03; // wc = 500
-    float g1 = 9.872816e-01, g2 = 1.271843e-05, g3 = 9.872816e-01, g4 = 1.271843e-02; // wc = 1000
+//    DacaRegs.DACVALS.all = 1*(ibeta_est * 2048.0 / 5.0) + 1024; // Amarelo
+//    DacbRegs.DACVALS.all = 1*(ibeta * 2048.0 / 5.0) + 1024; // Azul
+
+    // Cálculo das funções "s" em alpha/beta
+    //salpha = ialpha_est - ialpha;
+    //sbeta  = ibeta_est  - ibeta;
+
+    salpha = (ialpha_est - ialpha);
+    sbeta  = (ibeta_est  - ibeta);
+
+    //DacaRegs.DACVALS.all = 1*(qalpha * 2048.0 / 10000.0) + 1024; // Amarelo
+    //DacbRegs.DACVALS.all = 1*(qbeta * 2048.0 / 10000.0) + 1024; // Azul
+    //int_sa += Ts*(salpha-salphak1);
+
+    // Cálculo de dq
+//    dqalpha = - (1/Ts)*( (1+Ts*gamma1)*salpha - salphak1);
+//    dqbeta  = - (1/Ts)*( (1+Ts*gamma2)*sbeta - sbetak1 );
+
+    //dqalpha = ((1+Ts*gamma1)*salpha - salphak1);
+    //dqbeta =  (sbeta - sbetak1);
+
+    // Cálculo de q
+    qalpha = qalpha - (1/Ts)*( (1+Ts*gamma1)*salpha - salphak1);
+    qbeta  = qbeta  - (1/Ts)*( (1+Ts*gamma2)*sbeta - sbetak1 );
+
+//    qalpha += dqalpha;
+//    qbeta += dqbeta;
 
 
-    aux_alpha = g1*aux_alpha + g2*xka;
-    aux_beta  = g1*aux_beta  + g2*xkb;
-
-    if(aux_alpha3 >= 0.5) aux_alpha3 = 0.5;
-    if(aux_alpha3 <= -0.5) aux_alpha3 = -0.5;
-    if(aux_beta3 >= 0.5) aux_beta3 = 0.5;
-    if(aux_beta3 <= -0.5) aux_beta3 = -0.5;
-
-    aux_alpha2 = g3*aux_alpha2 + g4*aux_alpha3;
-    aux_beta2  = g3*aux_beta2  + g4*aux_beta3;
-
-    aux_alpha3 = aux_alpha + aux_alpha2;
-    aux_beta3  = aux_beta  + aux_beta2;
+//    DacaRegs.DACVALS.all = 1*(qalpha * 1.0 / 200.0) + 1024; // Amarelo
+//    DacbRegs.DACVALS.all = 1*(qbeta * 1.0 / 200.0) + 1024; // Azul
 
 
-    float phia_mras = (Lr/Lm)*(aux_alpha3 - sigma*Ls*ialpha );
-    float phib_mras  = (Lr/Lm)*(aux_beta3  - sigma*Ls*ibeta );
+    // Cálculo das derivadas dos fluxos
+    dflux_est_alpha = - qalpha/gamma;
+    dflux_est_beta  = - qbeta/gamma;
 
-//    DacaRegs.DACVALS.all = (phia_mras * 1024) + 1024;
-//    DacbRegs.DACVALS.all = (phib_mras * 1024) + 1024;
+
+    // Integração dos fluxos com correção
+    //float m1 = 9.996801e-01, m2 = 3.199488e-06, m3 = 9.996801e-01, m4 = 3.199488e-04, sat =0.1; // wc = 100
+    //float m1 = 9.996001e-01, m2 = 3.199360e-06, m3 = 9.996001e-01, m4 = 3.999200e-04, sat = 0.2; // wc = 125
+    float m1 = 9.841273e-01, m2 = 1.587268e-05, m3 = 9.841273e-01, m4 = 1.587268e-02, sat = 0.5; // wc = 1000
+
+
+    y1alpha = m1*y1alpha +  m2*dflux_est_alpha;
+    y1beta  = m1*y1beta  + m2*dflux_est_beta;
+    zalpha = flux_est_alpha;
+    zbeta = flux_est_beta;
+    if(flux_est_alpha >= sat) zalpha = sat;
+    if(flux_est_alpha <= -sat) zalpha = -sat;
+    if(flux_est_beta >= sat) zbeta = sat;
+    if(flux_est_beta <= -sat) zbeta = -sat;
+
+    y2alpha = m3*y2alpha + m4*zalpha;
+    y2beta  = m3*y2beta  + m4*zbeta;
+
+    flux_est_alpha = -(y1alpha + y2alpha);
+    flux_est_beta  = (y1beta  + y2beta);
+
 
     // Matriz A
     float a11 = (1 - Ts/Tlinha);                 //( = 0.998891379207670)
@@ -362,8 +389,8 @@ float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
     // xtil = A*xhat + B*u;
 
     // Traduzindo
-    xt1 = b11*valpha + a11*xh1 + a13*xh3 + a14*xh4;
-    xt2 = b11*vbeta + a22*xh2 + a23*xh3 + a24*xh4;
+    xt1 = b11*vbeta + a11*xh1 + a13*xh3 + a14*xh4;
+    xt2 = -b11*valpha + a22*xh2 + a23*xh3 + a24*xh4;
     xt3 = a31*xh1 + a33*xh3 + a34*xh4;
     xt4 = a42*xh2 + a43*xh3 + a44*xh4;
     xt5 = xh5;
@@ -429,7 +456,7 @@ float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
     pt55 = ph55 + q5;
 
     // Cálculo de resíduo
-    float res = phib_mras*xt3 - phia_mras*xt4;
+    float res = flux_est_beta*xt4 - flux_est_alpha*xt3;
 //    float res = phib_mras*xt4 - phia_mras*xt3;
 
 
@@ -440,8 +467,8 @@ float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
     xh3 = xt3 + (pt35*res)/(pt55 + r11);
     xh4 = xt4 + (pt45*res)/(pt55 + r11);
     xh5 = xt5 + (pt55*res)/(pt55 + r11);
-//    DacaRegs.DACVALS.all = (phib_mras * 2000) + 2000;
-//    DacbRegs.DACVALS.all = (xh4 * 2000) + 2000;
+    DacaRegs.DACVALS.all = (flux_est_alpha * 2000) + 2000;
+    DacbRegs.DACVALS.all = (xh3* 2000) + 2000;
 
     ph11 = pt11 - (pt15*pt51)/(pt55 + r11);
     ph12 = pt12 - (pt15*pt52)/(pt55 + r11);

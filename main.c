@@ -125,7 +125,7 @@ float ref_EKF(float, float, float, float, float, float);
 // MAIN
 void main(void){
     //INICIALIZAÇÃO DO CONTROLE DO SISTEMA.
-       InitSysCtrl();
+   InitSysCtrl();
     //1 ib
     //2 ic
     //0 ia
@@ -444,7 +444,7 @@ void LigaEPWMs(){
 //CONFIGURAÇÃO DO TIMER 1.
 void SetupTimers(void){
     InitCpuTimers();
-    ConfigCpuTimer(&CpuTimer1, 200, 3.2); //200MHz, 80us
+    ConfigCpuTimer(&CpuTimer1, 200, 16); //200MHz, 80us
     CpuTimer1Regs.TCR.all = 0x4000;
 
     ConfigCpuTimer(&CpuTimer0, 200, 160); //200MHz, 80us
@@ -848,8 +848,8 @@ __interrupt void timer0_isr(){
 
 //        DacaRegs.DACVALS.all = (I_d*2048.0/1.0);
 //        DacbRegs.DACVALS.all = (ref_kd*2048.0/1.0);
-        DacaRegs.DACVALS.all = (I_q*2048.0/1.0);
-        DacbRegs.DACVALS.all = (ref_kq*2000.0/1.0);
+//        DacaRegs.DACVALS.all = (I_q*2048.0/1.0);
+//        DacbRegs.DACVALS.all = (ref_kq*2000.0/1.0);
 //        DacaRegs.DACVALS.all = (I_q*2000.0/1.0);
 
         //REFERÊNCIAS EIXO D E Q:
@@ -946,9 +946,7 @@ __interrupt void adca1_isr(void){
     AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear INT1 flag
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
     GpioDataRegs.GPADAT.bit.GPIO15 = 1;
-    Ia_med0 = 2000;
-    Ib_med0 = 2000;
-    Ic_med0 = 2000;
+
     //LEITURA DO CONVERSOR AD.
     Ib_med = AdccResultRegs.ADCRESULT0;
     Ic_med = AdcbResultRegs.ADCRESULT0;
@@ -963,34 +961,23 @@ __interrupt void adca1_isr(void){
     vc = Vc_med * 250.0/580.0;
 
     // Ganho do ADC * Ganho do sensor;
-    ic = (Ic_med - Ic_med0)/gc;
-    ib = (Ib_med - Ib_med0)/gb;
-    ia = (Ia_med - Ia_med0)/ga;
+    ic = (Ic_med - 2000)/gc;
+    ib = (Ib_med - 2000)/gb;
+    ia = (Ia_med - 2000)/ga;
 
     float kk1 = 9.809831e-01, kk2 = 1.901685e-02;
     ia_filt = kk1*ia_filt + kk2*ia;
     ib_filt = kk1*ib_filt + kk2*ib;
     ic_filt = kk1*ic_filt + kk2*ic;
-//
-    float ibeta = (2.0/3.0)*(ia_filt - 0.5*ib_filt -0.5*ic_filt);
-    float ialpha = (2.0/3.0)*(0.86602540378443864676*ib_filt - 0.86602540378443864676*ic_filt);
-//    DacaRegs.DACVALS.all = (ialpha*2000.0/1.0) + 2000;
-//    DacbRegs.DACVALS.all = (ibeta*2000.0/1.0) + 2000;
 
     ia = ia_filt;
     ib = ib_filt;
     ic = ic_filt;
 
-    if(cont_obs == 3){
-//        refekf = -ref_EKF(vc_obs, vb_obs, va_obs, ia, ib, ic)*3.5 + 200;//*5.0 + 1200;//*1.2 + 120.0;
-        refekf = -ref_EKF(vc_obs, vb_obs, va_obs, ia, ib, ic)*4.45 + 375;//*5.0 + 1200;//*1.2 + 120.0;
-        cont_obs = 0;
-    }
-    cont_obs++;
-//
+    refekf = ref_EKF(vc_obs, vb_obs, va_obs, ia, ib, ic)*10 + 200;//*5.0 + 1200;//*1.2 + 120.0;
+
 //    DacaRegs.DACVALS.all = refekf * 2.048;
 //    DacbRegs.DACVALS.all = Velo_avg * 2.048;
-
     GpioDataRegs.GPADAT.bit.GPIO15 = 0;
 }
 
