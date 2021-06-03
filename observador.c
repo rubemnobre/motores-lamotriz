@@ -298,8 +298,8 @@ float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
     ialpha_est = ialpha_est + Ts*(dialpha_est);
     ibeta_est  = ibeta_est  + Ts*(dibeta_est);
 
-//    DacaRegs.DACVALS.all = 1*(ibeta_est * 2048.0 / 5.0) + 1024; // Amarelo
-//    DacbRegs.DACVALS.all = 1*(ibeta * 2048.0 / 5.0) + 1024; // Azul
+//    DacaRegs.DACVALS.all = 1*(ialpha* 2000.0 / 1.0) + 2000; // Amarelo
+//    DacbRegs.DACVALS.all = 1*(ibeta * 2000.0 / 1.0) + 2000; // Azul
 
     // Cálculo das funções "s" em alpha/beta
     //salpha = ialpha_est - ialpha;
@@ -338,9 +338,9 @@ float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 
     // Integração dos fluxos com correção
     //float m1 = 9.996801e-01, m2 = 3.199488e-06, m3 = 9.996801e-01, m4 = 3.199488e-04, sat =0.1; // wc = 100
-    //float m1 = 9.996001e-01, m2 = 3.199360e-06, m3 = 9.996001e-01, m4 = 3.999200e-04, sat = 0.2; // wc = 125
-    float m1 = 9.841273e-01, m2 = 1.587268e-05, m3 = 9.841273e-01, m4 = 1.587268e-02, sat = 0.5; // wc = 1000
-
+//    float m1 = 9.996001e-01, m2 = 3.199360e-06, m3 = 9.996001e-01, m4 = 3.999200e-04, sat = 0.2; // wc = 125
+    //float m1 = 9.841273e-01, m2 = 1.587268e-05, m3 = 9.841273e-01, m4 = 1.587268e-02, sat = 0.2; // wc = 1000
+    float m1 = 9.984013e-01, m2 = 1.598721e-05, m3 = 9.984013e-01, m4 = 1.598721e-03, sat = 0.1; // wc = 10
 
     y1alpha = m1*y1alpha +  m2*dflux_est_alpha;
     y1beta  = m1*y1beta  + m2*dflux_est_beta;
@@ -356,6 +356,8 @@ float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 
     flux_est_alpha = -(y1alpha + y2alpha);
     flux_est_beta  = (y1beta  + y2beta);
+//    flux_est_alpha += Ts*dflux_est_alpha;
+//    flux_est_beta += Ts*dflux_est_beta;
 
 
     // Matriz A
@@ -377,11 +379,11 @@ float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 
     // Matriz Q
     float q1 = 1e-6;
-    float q2 = q1, q3 = q1, q4 = q1, q5 = q1*1e3;
+    float q2 = q1, q3 = q1, q4 = q1, q5 = 0.5*q1*1e3;
 
     // Matriz R
+//    float r11 = 0.2;
     float r11 = 0.1;
-
     //=========== EKF ==================
 
     // Predição
@@ -389,8 +391,10 @@ float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
     // xtil = A*xhat + B*u;
 
     // Traduzindo
-    xt1 = b11*vbeta + a11*xh1 + a13*xh3 + a14*xh4;
-    xt2 = -b11*valpha + a22*xh2 + a23*xh3 + a24*xh4;
+//    xt1 = b11*vbeta + a11*xh1 + a13*xh3 + a14*xh4;
+//    xt2 = -b11*valpha + a22*xh2 + a23*xh3 + a24*xh4;
+    xt1 = b11*valpha + a11*xh1 + a13*xh3 + a14*xh4;
+    xt2 = -b11*vbeta + a22*xh2 + a23*xh3 + a24*xh4;
     xt3 = a31*xh1 + a33*xh3 + a34*xh4;
     xt4 = a42*xh2 + a43*xh3 + a44*xh4;
     xt5 = xh5;
@@ -456,7 +460,8 @@ float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
     pt55 = ph55 + q5;
 
     // Cálculo de resíduo
-    float res = flux_est_beta*xt4 - flux_est_alpha*xt3;
+//    float res = - flux_est_beta*(xt3) + flux_est_alpha*(xt4);
+    float res = - flux_est_beta*(xt3) + flux_est_alpha*(xt4);
 //    float res = phib_mras*xt4 - phia_mras*xt3;
 
 
@@ -467,8 +472,9 @@ float ref_EKF(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
     xh3 = xt3 + (pt35*res)/(pt55 + r11);
     xh4 = xt4 + (pt45*res)/(pt55 + r11);
     xh5 = xt5 + (pt55*res)/(pt55 + r11);
-    DacaRegs.DACVALS.all = (flux_est_alpha * 2000) + 2000;
-    DacbRegs.DACVALS.all = (xh3* 2000) + 2000;
+
+//    DacaRegs.DACVALS.all = (xh3 * 2000/1.0)  + 2000;
+//    DacbRegs.DACVALS.all = (xh4  * 2000/1.0) + 2000;
 
     ph11 = pt11 - (pt15*pt51)/(pt55 + r11);
     ph12 = pt12 - (pt15*pt52)/(pt55 + r11);

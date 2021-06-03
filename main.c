@@ -627,7 +627,7 @@ __interrupt void timer0_isr(){
     //INÍCIO DA MALHA DE CONTROLE.
 
     if (pin12==1){
-        float v_controle = Velo_avg;
+        float v_controle = refekf;
         //CAMPO ORIENTADO INDIRETO.
         T = ((Llr+Lm)/Rr);
         wsl = (ref_kq)/(ref_kd*T);
@@ -667,6 +667,9 @@ __interrupt void timer0_isr(){
 
         I_d_AD = (int)(1024*I_d) + 2048;
         I_q_AD = (int)(1024*I_q) + 2048;
+
+        DacaRegs.DACVALS.all = (ref_kq * 2000/1.0)  + 2000;
+        DacbRegs.DACVALS.all = (I_q  * 2000/1.0) + 2000;
 
 
         //MALHA DE VELOCIDADE.
@@ -735,9 +738,9 @@ __interrupt void timer0_isr(){
             if(ref==5){
                 t = 0.096*cont_velo_aux;
                 if(t >= 5){
-                    ref_Velo = 500;
+                    ref_Velo = 550;
                 }else{
-                    ref_Velo = 1000;
+                    ref_Velo = 1050;
                 }
                 cont_velo_aux++;
                 if(t>=10){
@@ -925,6 +928,8 @@ __interrupt void timer0_isr(){
         EPwm1Regs.CMPA.bit.CMPA = Vc; // adjust duty for output EPWM1A
         EPwm2Regs.CMPA.bit.CMPA = Vb; // adjust duty for output EPWM2A
         EPwm3Regs.CMPA.bit.CMPA = Va; // adjust duty for output EPWM3A
+//        DacaRegs.DACVALS.all = (Va - 2000) * 0.3 + 2000;
+//        DacbRegs.DACVALS.all = (Vb - 2000) * 0.3 + 2000;
         //SEQUENCIA CORRETA DE CIMA PRA BAIXO C,B,A
     }
     if (pin12==0){
@@ -974,10 +979,11 @@ __interrupt void adca1_isr(void){
     ib = ib_filt;
     ic = ic_filt;
 
-    refekf = ref_EKF(vc_obs, vb_obs, va_obs, ia, ib, ic)*10 + 200;//*5.0 + 1200;//*1.2 + 120.0;
+    refekf = ref_EKF(vc_obs, vb_obs, va_obs, ia, ib, ic)*9.3 -180;// - 150;//*5.0 + 1200;//*1.2 + 120.0;
+    if(refekf < 0) refekf = 0;
 
-//    DacaRegs.DACVALS.all = refekf * 2.048;
-//    DacbRegs.DACVALS.all = Velo_avg * 2.048;
+//    DacaRegs.DACVALS.all = refekf * 2.048 + 500;
+//    DacbRegs.DACVALS.all = Velo_avg * 2.048 + 500;
     GpioDataRegs.GPADAT.bit.GPIO15 = 0;
 }
 
