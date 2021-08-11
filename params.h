@@ -19,14 +19,9 @@
 
 #define p 2 // pares de polos
 
-#if defined(MRAS) || defined(SMO) || defined(MRAS_SMO)
-#define Ts 4e-6           // tempo de amostragem do observador 1/(fsw*100)
-#elif defined(EKF) || defined(EKF_MRAS) || defined(EKF_SMO)
-#define Ts 16e-6
-#endif
-
 //Parâmetros do Observador
 #define fsw 6e3            // Frequência de chaveamento
+#define Ts 3.2e-6           // tempo de amostragem do observador 1/(fsw*100)
 #define sigma 0.346442359  // coeficiente total de dispersão 1 - (Lm^2/(Ls*Lr))
 #define Tr 0.011939615     // constante de tempo rotórica (Lr/Rr)
 #define fpb_a 800          // parâmetro para FPB
