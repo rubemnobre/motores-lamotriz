@@ -5,8 +5,11 @@
  */
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 #include<fpu32/fpu_vector.h>
 =======
+=======
+>>>>>>> Stashed changes
 #include<math.h>
 >>>>>>> Stashed changes
 #include "F28x_Project.h"
@@ -41,6 +44,9 @@ float ref_OBS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 //    DacbRegs.DACVALS.all = (ibeta*2000.0/1.0) + 2000;
     data2->ia = ialpha;
     data2->ib = ibeta;
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     // Variável auxiliar para integração
     float xka = (valpha - Rs*ialpha);
@@ -108,7 +114,12 @@ float ref_OBS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
     //wr = Velo*DPI*p/60.0;
     wrk1 = wr;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     return (60.0/DPI)*(1.0/p)*wrf;  // conversão de rad/s para rpm
+=======
+    //return pos; -ref_OBS(vc_obs, vb_obs, va_obs, ia, ib, ic, 0)*0.79 + 200
+    return -(60.0/DPI)*(1.0/p)*wrf*0.79 + 200.0;  // conversão de rad/s para rpm
+>>>>>>> Stashed changes
 =======
     //return pos; -ref_OBS(vc_obs, vb_obs, va_obs, ia, ib, ic, 0)*0.79 + 200
     return -(60.0/DPI)*(1.0/p)*wrf*0.79 + 200.0;  // conversão de rad/s para rpm
@@ -122,6 +133,7 @@ float dialpha_est = 0, dibeta_est = 0, ialpha_est = 0, ibeta_est = 0, qalpha = 0
 
 float y1alpha = 0, y1beta = 0, y2alpha = 0, y2beta = 0, zalpha = 0, zbeta = 0;  // variáveis para integração das correntes
 float wfiltro = 0, dfilt = 0;
+<<<<<<< Updated upstream
 
 float int_sa = 0;
 
@@ -131,6 +143,17 @@ int i_D = 0;
 float ref_OBS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in){ // Observador de fluxo rotórico e de velocidade por modos deslizantes
 
 
+=======
+
+float int_sa = 0;
+
+float valores_D[10], media_D;
+int i_D = 0;
+
+float ref_OBS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in){ // Observador de fluxo rotórico e de velocidade por modos deslizantes
+
+
+>>>>>>> Stashed changes
 
 // Transformação de eixos de referência (invariante em amplitude)
     float vbeta = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
