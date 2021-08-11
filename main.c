@@ -557,9 +557,22 @@ void ConfigureDAC(){
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 int cont_controle = 0;
 unsigned int tc = 0;
 __interrupt void timer0_isr(){
+=======
+=======
+>>>>>>> Stashed changes
+unsigned long i_amostra = 0;
+float pos;
+int cont_controle = 0;
+unsigned int tc = 0;
+<<<<<<< Updated upstream
+
+__interrupt void timer0_isr(){
+    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
+>>>>>>> Stashed changes
 =======
 unsigned long i_amostra = 0;
 float pos;
@@ -570,10 +583,6 @@ __interrupt void timer0_isr(){
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 >>>>>>> Stashed changes
 =======
-unsigned long i_amostra = 0;
-float pos;
-int cont_controle = 0;
-unsigned int tc = 0;
 
 __interrupt void timer0_isr(){
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
@@ -670,7 +679,10 @@ __interrupt void timer0_isr(){
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
         data1->id = I_d;
@@ -768,9 +780,12 @@ __interrupt void timer0_isr(){
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             //double kp = 0.0002;
             //double ki = 1.99e-4;
             float v_controle = refmras;
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
@@ -792,7 +807,10 @@ __interrupt void timer0_isr(){
         }
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         //ref_kq = iq;
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
@@ -808,11 +826,14 @@ __interrupt void timer0_isr(){
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         //LEI DE CONTROLE:
         //Controladores eixo d e q.
         v_atual_d =103*erro_cd -100.4 * erro_cd_ant1  + v_d_ant ;
         v_atual_q =103* erro_cq -100.4* erro_cq_ant1 + v_q_ant ;
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
         float kpi = 103, kii = 100.4;
@@ -883,9 +904,14 @@ __interrupt void timer0_isr(){
     saida = 1;
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
     CpuTimer0Regs.TCR.bit.TIF = 1;
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
+=======
+    i_amostra++;
+    data1->j = i_amostra;
+>>>>>>> Stashed changes
 =======
     i_amostra++;
     data1->j = i_amostra;
@@ -899,6 +925,10 @@ __interrupt void timer0_isr(){
 __interrupt void adca1_isr(void){
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+    DINT;
+>>>>>>> Stashed changes
 =======
     DINT;
 >>>>>>> Stashed changes
@@ -936,8 +966,11 @@ __interrupt void adca1_isr(void){
     DacbRegs.DACVALS.all = refmras * 2.048;
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     GpioDataRegs.GPADAT.bit.GPIO15 = 0;
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
     refobs = ref_OBS(vc_obs, vb_obs, va_obs, ia, ib, ic);
@@ -958,6 +991,9 @@ __interrupt void adca1_isr(void){
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
     EINT;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
