@@ -6,11 +6,8 @@
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
 #include<fpu32/fpu_vector.h>
 =======
-=======
->>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 #include<math.h>
@@ -48,9 +45,6 @@ float ref_OBS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
     data2->ia = ialpha;
     data2->ib = ibeta;
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -121,12 +115,7 @@ float ref_OBS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
     wrk1 = wr;
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
     return (60.0/DPI)*(1.0/p)*wrf;  // conversão de rad/s para rpm
-=======
-    //return pos; -ref_OBS(vc_obs, vb_obs, va_obs, ia, ib, ic, 0)*0.79 + 200
-    return -(60.0/DPI)*(1.0/p)*wrf*0.79 + 200.0;  // conversão de rad/s para rpm
->>>>>>> Stashed changes
 =======
     //return pos; -ref_OBS(vc_obs, vb_obs, va_obs, ia, ib, ic, 0)*0.79 + 200
     return -(60.0/DPI)*(1.0/p)*wrf*0.79 + 200.0;  // conversão de rad/s para rpm
@@ -145,7 +134,6 @@ float dialpha_est = 0, dibeta_est = 0, ialpha_est = 0, ibeta_est = 0, qalpha = 0
 float y1alpha = 0, y1beta = 0, y2alpha = 0, y2beta = 0, zalpha = 0, zbeta = 0;  // variáveis para integração das correntes
 float wfiltro = 0, dfilt = 0;
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
 float int_sa = 0;
 
@@ -159,20 +147,12 @@ float ref_OBS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 
 float int_sa = 0;
 
-=======
-
-float int_sa = 0;
-
->>>>>>> Stashed changes
 float valores_D[10], media_D;
 int i_D = 0;
 
 float ref_OBS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in){ // Observador de fluxo rotórico e de velocidade por modos deslizantes
 
 
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
 >>>>>>> Stashed changes
 
 // Transformação de eixos de referência (invariante em amplitude)
@@ -458,7 +438,6 @@ float ref_OBS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 }
 
 #elif defined(EKF)
-<<<<<<< Updated upstream
 
 
 int init = 1;
@@ -669,8 +648,6 @@ float ref_OBS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, f
 }
 
 #elif defined(EKF_MRAS)
-=======
->>>>>>> Stashed changes
 
 
 int init = 1;
@@ -692,219 +669,6 @@ float pt31 = 0, pt32 = 0, pt33 = 0, pt34 = 0, pt35 = 0;
 float pt41 = 0, pt42 = 0, pt43 = 0, pt44 = 0, pt45 = 0;
 float pt51 = 0, pt52 = 0, pt53 = 0, pt54 = 0, pt55 = 0;
 
-<<<<<<< Updated upstream
-=======
-float ref_OBS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in){ // Observador de fluxo rotórico e de velocidade filtro de Kalman estendido
-    // Transformação de clarke de v
-    // Mudanças: valpha e vbeta trocados e mecanismo de adaptação
-    float valpha = (2.0/3.0)*(va_in - 0.5*vb_in -0.5*vc_in);
-    float vbeta = (2.0/3.0)*(0.86602540378443864676*vb_in - 0.86602540378443864676*vc_in);
-
-    // Transformação de clarke de i
-    float ialpha = (2.0/3.0)*(ia_in - 0.5*ib_in -0.5*ic_in);
-    float ibeta = (2.0/3.0)*(0.86602540378443864676*ib_in - 0.86602540378443864676*ic_in);
-//
-//    DacaRegs.DACVALS.all = (ialpha*2000.0/1.0) + 2000.0;
-//    DacbRegs.DACVALS.all = (ibeta*2000.0/1.0) + 2000.0;
-    // Iniciando gk
-    float k11 = 0, k21 = 0, k31 = 0, k41 = 0, k51 = 0, k12 = 0, k22 = 0, k32 = 0, k42 = 0, k52 = 0;
-
-    // Matriz A
-    float a11 = (1 - Ts/Tlinha);                 //( = 0.998891379207670)
-    float a13 = ((Ts*Lm)/(sigma*Ls*Lr*Tr));      //( = 8.000435870123950e-04)
-    float a14 = ((2*xh5*Ts*Lm)/(sigma*Ls*Lr));     //( = 9.552213001383126e-06*2*xh5)  xh5 entra em A
-    float a22 = (1 - Ts/Tlinha);                 //( = 0.998891379207670)
-    float a23 = ((-2*xh5*Ts*Lm)/(sigma*Ls*Lr));    //( = 9.552213001383126e-06*2*xh5)  xh5 entra em A
-    float a24 = ((Ts*Lm)/(sigma*Ls*Lr*Tr));      //( =  8.000435870123950e-04)
-    float a31 = (Ts*Lm/Tr);                      //( = 2.467974457215837e-04)
-    float a33 = (1 - Ts/Tr);                     //( = 0.999720817369093)
-    float a34 = -Ts*2*xh5;                         //( = -3.333333333333333e-06*2*xh5) xh5 entra em A
-    float a42 = (Ts*Lm/Tr);                      //( = 2.467974457215837e-04)
-    float a43 =  Ts*2*xh5;                         //( = 3.333333333333333e-06*2*xh5)  xh5 entra em A
-    float a44 = (1 - Ts/Tr);                     //( = 0.999720817369093)
-
-    // Matriz B
-    float b11 = (Ts/(sigma*Ls));
-    float b22 = (Ts/(sigma*Ls));
-
-    // Matriz Q
-    float q1 = 1e-6;
-    float q2 = q1, q3 = q1, q4 = q1, q5 = 0.5*q1*1e3;
-
-    // Matriz R
-    float r11 = 1, r22 = 1;
-
-    //=========== EKF ==================
-
-    // Predição
-    // 1) variáveis de estado
-    // xtil = A*xhat + B*u;
-
-    // Traduzindo
-    xt1 = b11*valpha + a11*xh1 + a13*xh3 + a14*xh4;
-    xt2 = b22*vbeta + a22*xh2 + a23*xh3 + a24*xh4;
-    xt3 = a31*xh1 + a33*xh3 + a34*xh4;
-    xt4 = a42*xh2 + a43*xh3 + a44*xh4;
-    xt5 = xh5;
-
-
-    // Matriz G
-    float g11 = (1 - Ts/Tlinha);                    //( = 0.998891379207670)
-
-    float g13 = ((Ts*Lm)/(sigma*Ls*Lr*Tr));         //( = 8.000435870123950e-04)
-    float g14 = ((Ts*Lm)/(sigma*Ls*Lr)) * (2*xt5);  //( = 9.552213001383126e-06*2*xt5)  xt5 entra na matriz G (velocidade)
-    float g15 = ((Ts*Lm)/(sigma*Ls*Lr)) * (xt4);    //( = 9.552213001383126e-06*xt4)    xt4 entra na matriz G (phi_beta)
-
-    float g22 = (1-Ts/Tlinha);                      //( = 0.998891379207670)
-    float g23 = ((Ts*Lm)/(sigma*Ls*Lr)) * (-2*xt5); //( = 9.552213001383126e-06*-2*xt5) xt5 entra na matriz G (velocidade)
-    float g24 = ((Ts*Lm)/(sigma*Ls*Lr*Tr));         //( = 8.000435870123950e-04)
-    float g25 = ((-Ts*Lm)/(sigma*Ls*Lr)) * (xt3);   //( = -9.552213001383126e-06*xt3) xt3 entra na matriz G (phi_alpha)
-    float g31 = (Ts*Lm/Tr);                         //( = 2.467974457215837e-04)
-
-    float g33 =  (1 - Ts/Tr);                       //( = 0.999720817369093)
-    float g34 = -Ts * (2*xt5);                      //( = -3.333333333333333e-06*2*xt5) xt5 entra na matriz G (velocidade)
-    float g35 = -Ts * (xt4);                        //( = -3.333333333333333e-06*xt4) xt4 entra na matriz G (phi_beta)
-
-
-    float g42 = Ts*Lm/Tr;                           //( = 2.467974457215837e-04)
-    float g43 = Ts * (2*xt5);                       //( = 3.333333333333333e-06*2*xt5) xt5 entra na matriz G (velocidade)
-    float g44 = (1 - Ts/Tr);                        //( = 0.999720817369093)
-    float g45 = Ts * (xt3);                         //( = 3.333333333333333e-06*xt3) xt3 entra na matriz G (phi_alpha)
-
-
-
-    // 2) covariância do erro
-    // Ptil = G*Phat*G'+ Q;
-
-    // Traduzindo
-    pt11 = q1 + g11*(g11*ph11 + g13*ph31 + g14*ph41 + g15*ph51) + g13*(g11*ph13 + g13*ph33 + g14*ph43 + g15*ph53) + g14*(g11*ph14 + g13*ph34 + g14*ph44 + g15*ph54) + g15*(g11*ph15 + g13*ph35 + g14*ph45 + g15*ph55);
-    pt12 = g22*(g11*ph12 + g13*ph32 + g14*ph42 + g15*ph52) + g23*(g11*ph13 + g13*ph33 + g14*ph43 + g15*ph53) + g24*(g11*ph14 + g13*ph34 + g14*ph44 + g15*ph54) + g25*(g11*ph15 + g13*ph35 + g14*ph45 + g15*ph55);
-    pt13 = g31*(g11*ph11 + g13*ph31 + g14*ph41 + g15*ph51) + g33*(g11*ph13 + g13*ph33 + g14*ph43 + g15*ph53) + g34*(g11*ph14 + g13*ph34 + g14*ph44 + g15*ph54) + g35*(g11*ph15 + g13*ph35 + g14*ph45 + g15*ph55);
-    pt14 = g42*(g11*ph12 + g13*ph32 + g14*ph42 + g15*ph52) + g43*(g11*ph13 + g13*ph33 + g14*ph43 + g15*ph53) + g44*(g11*ph14 + g13*ph34 + g14*ph44 + g15*ph54) + g45*(g11*ph15 + g13*ph35 + g14*ph45 + g15*ph55);
-    pt15 = g11*ph15 + g13*ph35 + g14*ph45 + g15*ph55;
-
-    pt21 = g11*(g22*ph21 + g23*ph31 + g24*ph41 + g25*ph51) + g13*(g22*ph23 + g23*ph33 + g24*ph43 + g25*ph53) + g14*(g22*ph24 + g23*ph34 + g24*ph44 + g25*ph54) + g15*(g22*ph25 + g23*ph35 + g24*ph45 + g25*ph55);
-    pt22 = q2 + g22*(g22*ph22 + g23*ph32 + g24*ph42 + g25*ph52) + g23*(g22*ph23 + g23*ph33 + g24*ph43 + g25*ph53) + g24*(g22*ph24 + g23*ph34 + g24*ph44 + g25*ph54) + g25*(g22*ph25 + g23*ph35 + g24*ph45 + g25*ph55);
-    pt23 = g31*(g22*ph21 + g23*ph31 + g24*ph41 + g25*ph51) + g33*(g22*ph23 + g23*ph33 + g24*ph43 + g25*ph53) + g34*(g22*ph24 + g23*ph34 + g24*ph44 + g25*ph54) + g35*(g22*ph25 + g23*ph35 + g24*ph45 + g25*ph55);
-    pt24 = g42*(g22*ph22 + g23*ph32 + g24*ph42 + g25*ph52) + g43*(g22*ph23 + g23*ph33 + g24*ph43 + g25*ph53) + g44*(g22*ph24 + g23*ph34 + g24*ph44 + g25*ph54) + g45*(g22*ph25 + g23*ph35 + g24*ph45 + g25*ph55);
-    pt25 = g22*ph25 + g23*ph35 + g24*ph45 + g25*ph55;
-
-    pt31 = g11*(g31*ph11 + g33*ph31 + g34*ph41 + g35*ph51) + g13*(g31*ph13 + g33*ph33 + g34*ph43 + g35*ph53) + g14*(g31*ph14 + g33*ph34 + g34*ph44 + g35*ph54) + g15*(g31*ph15 + g33*ph35 + g34*ph45 + g35*ph55);
-    pt32 = g22*(g31*ph12 + g33*ph32 + g34*ph42 + g35*ph52) + g23*(g31*ph13 + g33*ph33 + g34*ph43 + g35*ph53) + g24*(g31*ph14 + g33*ph34 + g34*ph44 + g35*ph54) + g25*(g31*ph15 + g33*ph35 + g34*ph45 + g35*ph55);
-    pt33 = q3 + g31*(g31*ph11 + g33*ph31 + g34*ph41 + g35*ph51) + g33*(g31*ph13 + g33*ph33 + g34*ph43 + g35*ph53) + g34*(g31*ph14 + g33*ph34 + g34*ph44 + g35*ph54) + g35*(g31*ph15 + g33*ph35 + g34*ph45 + g35*ph55);
-    pt34 = g42*(g31*ph12 + g33*ph32 + g34*ph42 + g35*ph52) + g43*(g31*ph13 + g33*ph33 + g34*ph43 + g35*ph53) + g44*(g31*ph14 + g33*ph34 + g34*ph44 + g35*ph54) + g45*(g31*ph15 + g33*ph35 + g34*ph45 + g35*ph55);
-    pt35 = g31*ph15 + g33*ph35 + g34*ph45 + g35*ph55;
-
-    pt41 = g11*(g42*ph21 + g43*ph31 + g44*ph41 + g45*ph51) + g13*(g42*ph23 + g43*ph33 + g44*ph43 + g45*ph53) + g14*(g42*ph24 + g43*ph34 + g44*ph44 + g45*ph54) + g15*(g42*ph25 + g43*ph35 + g44*ph45 + g45*ph55);
-    pt42 = g22*(g42*ph22 + g43*ph32 + g44*ph42 + g45*ph52) + g23*(g42*ph23 + g43*ph33 + g44*ph43 + g45*ph53) + g24*(g42*ph24 + g43*ph34 + g44*ph44 + g45*ph54) + g25*(g42*ph25 + g43*ph35 + g44*ph45 + g45*ph55);
-    pt43 = g31*(g42*ph21 + g43*ph31 + g44*ph41 + g45*ph51) + g33*(g42*ph23 + g43*ph33 + g44*ph43 + g45*ph53) + g34*(g42*ph24 + g43*ph34 + g44*ph44 + g45*ph54) + g35*(g42*ph25 + g43*ph35 + g44*ph45 + g45*ph55);
-    pt44 = q4 + g42*(g42*ph22 + g43*ph32 + g44*ph42 + g45*ph52) + g43*(g42*ph23 + g43*ph33 + g44*ph43 + g45*ph53) + g44*(g42*ph24 + g43*ph34 + g44*ph44 + g45*ph54) + g45*(g42*ph25 + g43*ph35 + g44*ph45 + g45*ph55);
-    pt45 = g42*ph25 + g43*ph35 + g44*ph45 + g45*ph55;
-
-    pt51 = g11*ph51 + g13*ph53 + g14*ph54 + g15*ph55;
-    pt52 = g22*ph52 + g23*ph53 + g24*ph54 + g25*ph55;
-    pt53 = g31*ph51 + g33*ph53 + g34*ph54 + g35*ph55;
-    pt54 = g42*ph52 + g43*ph53 + g44*ph54 + g45*ph55;
-    pt55 = ph55 + q5;
-
-
-
-    // Etapa de atualização
-    // 3) ganho de Kalman
-    // kk = Ptil*C'*inv(C*Ptil*C'+ R);
-
-    // Traduzindo
-    float det = (pt11*pt22 - pt12*pt21 + pt11*r22 + pt22*r11 + r11*r22);
-
-    k11 = (1/det)*(pt11*(pt22 + r22)) - (pt12*pt21);
-    k12 = (1/det)*(pt12*(pt11 + r11)) - (pt11*pt12);
-
-    k21 = (1/det)*(pt21*(pt22 + r22)) - (pt21*pt22);
-    k22 = (1/det)*(pt22*(pt11 + r11)) - (pt12*pt21);
-
-    k31 = (1/det)*(pt31*(pt22 + r22)) - (pt21*pt32);
-    k32 = (1/det)*(pt32*(pt11 + r11)) - (pt12*pt31);
-
-    k41 = (1/det)*(pt41*(pt22 + r22)) - (pt21*pt42);
-    k42 = (1/det)*(pt42*(pt11 + r11)) - (pt12*pt41);
-
-    k51 = (1/det)*(pt51*(pt22 + r22)) - (pt21*pt52);
-    k52 = (1/det)*(pt52*(pt11 + r11)) - (pt12*pt51);
-
-
-    // 4) Atualização dos estados preditos
-    // xhat = xtil + kk*(y - C*xtil);
-
-    // Traduzindo
-    xh1 = xt1 - k11*(xt1 - ialpha) - k12*(xt2 - ibeta);
-    xh2 = xt2 - k21*(xt1 - ialpha) - k22*(xt2 - ibeta);
-    xh3 = xt3 - k31*(xt1 - ialpha) - k32*(xt2 - ibeta);
-    xh4 = xt4 - k41*(xt1 - ialpha) - k42*(xt2 - ibeta);
-    xh5 = xt5 - k51*(xt1 - ialpha) - k52*(xt2 - ibeta);
-
-//    DacaRegs.DACVALS.all = (xh3*2000.0/1.0) + 2000.0;
-//    DacbRegs.DACVALS.all = (xh4*2000.0/1.0) + 2000.0;
-
-    // 5) Atualização da covariância do erro
-    // Phat = (eye(5) - kk*C)*Ptil;
-
-    // Traduzindo
-    ph11 = - k12*pt21 - pt11*(k11 - 1);
-    ph12 = - k12*pt22 - pt12*(k11 - 1);
-    ph13 = - k12*pt23 - pt13*(k11 - 1);
-    ph14 = - k12*pt24 - pt14*(k11 - 1);
-    ph15 = - k12*pt25 - pt15*(k11 - 1);
-
-    ph21 = - k21*pt11 - pt21*(k22 - 1);
-    ph22 = - k21*pt12 - pt22*(k22 - 1);
-    ph23 = - k21*pt13 - pt23*(k22 - 1);
-    ph24 = - k21*pt14 - pt24*(k22 - 1);
-    ph25 = - k21*pt15 - pt25*(k22 - 1);
-
-    ph31 = pt31 - k31*pt11 - k32*pt21;
-    ph32 = pt32 - k31*pt12 - k32*pt22;
-    ph33 = pt33 - k31*pt13 - k32*pt23;
-    ph34 = pt34 - k31*pt14 - k32*pt24;
-    ph35 = pt35 - k31*pt15 - k32*pt25;
-
-    ph41 = pt41 - k41*pt11 - k42*pt21;
-    ph42 = pt42 - k41*pt12 - k42*pt22;
-    ph43 = pt43 - k41*pt13 - k42*pt23;
-    ph44 = pt44 - k41*pt14 - k42*pt24;
-    ph45 = pt45 - k41*pt15 - k42*pt25;
-
-    ph51 = pt51 - k51*pt11 - k52*pt21;
-    ph52 = pt52 - k51*pt12 - k52*pt22;
-    ph53 = pt53 - k51*pt13 - k52*pt23;
-    ph54 = pt54 - k51*pt14 - k52*pt24;
-    ph55 = pt55 - k51*pt15 - k52*pt25;
-
-    return -6.0*xh5;
-}
-
-#elif defined(EKF_MRAS)
-
-
-int init = 1;
-
-// Iniciando xhat
-float xh1 = 1, xh2 = 1, xh3 = 1, xh4 = 1, xh5 = 1, xt1 = 0, xt2 = 0, xt3 = 0, xt4 = 0, xt5 = 0;
-
-// Iniciando Phat
-float ph11 = 0, ph12 = 0, ph13 = 0, ph14 = 0, ph15 = 0;
-float ph21 = 0, ph22 = 0, ph23 = 0, ph24 = 0, ph25 = 0;
-float ph31 = 0, ph32 = 0, ph33 = 0, ph34 = 0, ph35 = 0;
-float ph41 = 0, ph42 = 0, ph43 = 0, ph44 = 0, ph45 = 0;
-float ph51 = 0, ph52 = 0, ph53 = 0, ph54 = 0, ph55 = 0;
-
-// Iniciando Ptil
-float pt11 = 0, pt12 = 0, pt13 = 0, pt14 = 0, pt15 = 0;
-float pt21 = 0, pt22 = 0, pt23 = 0, pt24 = 0, pt25 = 0;
-float pt31 = 0, pt32 = 0, pt33 = 0, pt34 = 0, pt35 = 0;
-float pt41 = 0, pt42 = 0, pt43 = 0, pt44 = 0, pt45 = 0;
-float pt51 = 0, pt52 = 0, pt53 = 0, pt54 = 0, pt55 = 0;
-
->>>>>>> Stashed changes
 float aux_alpha = 0, aux_beta = 0, aux_alpha2 = 0, aux_alpha3 = 0, aux_beta2 = 0, aux_beta3 = 0;
 
 float ref_OBS(float va_in, float vb_in, float vc_in, float ia_in, float ib_in, float ic_in){ // Observador de fluxo rotórico e de velocidade filtro de Kalman estendido
