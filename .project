@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>bancada-motores</name>
+	<name>observadores</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -94,11 +94,6 @@
 			<name>F2837xD_usDelay.asm</name>
 			<type>1</type>
 			<locationURI>DEVICE_SUPPORT/common/source/F2837xD_usDelay.asm</locationURI>
-		</link>
-		<link>
-			<name>mpy_SP_RMxRM.asm</name>
-			<type>1</type>
-			<locationURI>FPU_DSP_LIB_ROOT/source/fpu32/vector/mpy_SP_RMxRM.asm</locationURI>
 		</link>
 	</linkedResources>
 	<variableList>

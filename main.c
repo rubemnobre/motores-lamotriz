@@ -8,9 +8,11 @@
 #include <stdio.h>
 #include "F28x_Project.h"
 #include "params.h"
+#include "datastruct.h"
 
 #define DPI 6.28318530717958647692
 
+msg_data *data1 = (void *)(uint32_t)0x03FC00;
 //VARIÁVEIS GLOBAIS.
 
 float t = 0;//Variável para medição de tempo.
@@ -83,29 +85,9 @@ float erro_Velo_ant1 =0; //Valores passados para o erro da malha de velocidade.
 float Velo_ant1 =0;//Valores passados para a velociddae do motor.
 
 float wa = 0;
-// Variáveis do controle de fluxo
-//float U_alp_int = 0;
-//float U_bet_int = 0;
-//float i_alp_int = 0;
-//float i_bet_int = 0;
-//float flux_a_k2 = 0;
-//float flux_a_k1 = 0;
-//float flux_b_k2 = 0;
-//float flux_b_k1 = 0;
-//float flux_a_cf_k2 = 0;
-//float flux_a_cf_k1 = 0;
-//float flux_b_cf_k2 = 0;
-//float flux_b_cf_k1 = 0;
-//float e_a_int_k1 = 0;
-//float e_a_k1 = 0;
-//float e_b_int_k1 = 0;
-//float e_b_k1 = 0;
-//float u_a = 0, u_b = 0;
-//float flux_r = 0;
-//float e_flux_ant = 0;
-//float ref_kd_ant = 0;
+
 float V_a = 0, V_b = 0, V_c = 0;
-float va_obs = 0, vb_obs = 0, vc_obs = 0, ia_obs = 0, ib_obs = 0, ic_obs = 0, refmras = 0, iq = 0.5;
+float va_obs = 0, vb_obs = 0, vc_obs = 0, ia_obs = 0, ib_obs = 0, ic_obs = 0, refobs = 0, iq = 0.5;
 int n_degrau = 0;
 // FUNCTIONS
 void InitEPwmS(void);
@@ -121,14 +103,16 @@ __interrupt void epwm2_isr(void);
 __interrupt void epwm3_isr(void);
 __interrupt void timer0_isr(void);
 __interrupt void eqep1_isr(void);
-float ref_MRAS(float, float, float, float, float, float, float);
+float ref_OBS(float, float, float, float, float, float);
 // MAIN
 void main(void){
     //INICIALIZAÇÃO DO CONTROLE DO SISTEMA.
+    EALLOW;
+    DevCfgRegs.CPUSEL5.bit.SCI_A = 1; // Handoff do SCIA para a CPU02
+    EDIS;
+
     InitSysCtrl();
-    //1 ib
-    //2 ic
-    //0 ia
+
     //CONFIGURAÇÃO DOS PINOS DE ENTRADA E SAÍDA.
     EALLOW;
 
@@ -155,12 +139,23 @@ void main(void){
     GpioCtrlRegs.GPAMUX1.bit.GPIO14 = 0;
     GpioCtrlRegs.GPADIR.bit.GPIO14 = 0;
 
+
+    GpioCtrlRegs.GPBMUX1.bit.GPIO34 = 0;
+    GpioCtrlRegs.GPBDIR.bit.GPIO34 = 1;
+    GpioCtrlRegs.GPBPUD.bit.GPIO34  = 0;
+    GpioCtrlRegs.GPBCSEL1.bit.GPIO34 = 0b10;
+
     //MUDA_REFERÊNCIA.
     GpioCtrlRegs.GPAMUX1.bit.GPIO15 = 0;
     GpioCtrlRegs.GPADIR.bit.GPIO15 = 1;
 
     //EQEP.
     InitEQep1Gpio();
+
+    GPIO_SetupPinMux(43, GPIO_MUX_CPU2, 0xF);
+    GPIO_SetupPinOptions(43, GPIO_INPUT, GPIO_PUSHPULL);
+    GPIO_SetupPinMux(42, GPIO_MUX_CPU2, 0xF);
+    GPIO_SetupPinOptions(42, GPIO_OUTPUT, GPIO_ASYNC);
 
     EDIS;
 
@@ -200,6 +195,7 @@ void main(void){
 
     // Step 4. Initialize the Device Peripherals:
     //
+
     EALLOW;
     CpuSysRegs.PCLKCR0.bit.TBCLKSYNC =0;
     EDIS;
@@ -218,6 +214,7 @@ void main(void){
     PieCtrlRegs.PIEIER3.bit.INTx2 = 1;
     PieCtrlRegs.PIEIER3.bit.INTx3 = 1;
     PieCtrlRegs.PIEIER1.bit.INTx7 = 1;
+    PieCtrlRegs.PIEIER1.bit.INTx1 = 1;
     PieCtrlRegs.PIEIER5.bit.INTx1 = 1;
     // Enable global Interrupts and higher priority real-time debug events:
     EINT;  // Enable Global interrupt INTM
@@ -234,16 +231,8 @@ void main(void){
         c=4000 + 3200*__sin(theta_atual_ma  -  ((DPI)/3));
         d=4000 + 3200*__sin(theta_atual_ma  -  ((2*DPI)/3));
 
-
         //LOOP.
-        for(;;){
-            // va -> ic
-            // vb -> vb
-            // vc -> ia
-            if(saida==1){
-                break;
-            }
-        }
+        for(;;) if(saida==1) break;
         saida = 0;
     }
 }
@@ -444,7 +433,7 @@ void LigaEPWMs(){
 //CONFIGURAÇÃO DO TIMER 1.
 void SetupTimers(void){
     InitCpuTimers();
-    ConfigCpuTimer(&CpuTimer1, 200, 3.2); //200MHz, 80us
+    ConfigCpuTimer(&CpuTimer1, 200, Ts*1e6); //200MHz, 80us
     CpuTimer1Regs.TCR.all = 0x4000;
 
     ConfigCpuTimer(&CpuTimer0, 200, 160); //200MHz, 80us
@@ -566,12 +555,13 @@ void ConfigureDAC(){
     EDIS;
 }
 
+unsigned long i_amostra = 0;
 float pos;
 int cont_controle = 0;
 unsigned int tc = 0;
-__interrupt void timer0_isr(){
 
-    GpioDataRegs.GPADAT.bit.GPIO15 = 1;
+__interrupt void timer0_isr(){
+    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
     theta_atual_ma = ((0.000160)*DPI*20) + theta_ant_ma; // Integrador discreto.
         theta_ant_ma = theta_atual_ma;
 
@@ -601,7 +591,7 @@ __interrupt void timer0_isr(){
         delta_posicao = Rotor_Posicao - Rotor_Posicao_Ant;
 
         //ROTOR PARADO ??
-        if(delta_posicao ==0||Velo == 0){
+        if(delta_posicao == 0||Velo == 0){
             Velo_aux = Velo;
         }
 
@@ -626,10 +616,7 @@ __interrupt void timer0_isr(){
         Rotor_Posicao_Ant = Rotor_Posicao;
         Velo_ant1 = Velo_avg;
 
-
-    //refmras = ref_MRAS(va_obs, vb_obs, vc_obs, ia, ib, ic);
     //INÍCIO DA MALHA DE CONTROLE.
-
     if (pin12==1){
         //CAMPO ORIENTADO INDIRETO.
         float v_controle = Velo_avg;
@@ -668,6 +655,8 @@ __interrupt void timer0_isr(){
         I_atual_d = I_d;
         I_atual_q = I_q;
 
+        data1->id = I_d;
+        data1->iq = I_q;
 
         //Correntes d e q em valores digitais.
 
@@ -680,6 +669,7 @@ __interrupt void timer0_isr(){
         if(cont_velo==1225){
             //Referência degrau
             if(ref==1){
+                ref_Velo = 1000;
                 ref_Velo_AD = (int)(2.048*ref_Velo);
             }
 
@@ -754,108 +744,24 @@ __interrupt void timer0_isr(){
             cont_velo = 0;
 
             //PI malha de velocidade
-            //double ki = -0.0011;
-            //double kp = 0.0011491;
-
-            //double ki = -0.001764;
-            //double kp = 0.00196;
-
-            //double ki = -0.001764;
-            //double kp = 0.00196;
-            //double kp = 5e-05;
-            //double ki = 4.983e-05;
             double kp = 6.6667e-05;
             double ki = 6.6334e-05;
 
-            //double kp = 0.0002;
-            //double ki = 1.99e-4;
             erro_Velo = ref_Velo - v_controle;
             ref_kq = ref_kq_ant + ki*erro_Velo_ant1 + kp*erro_Velo;
             erro_Velo_ant1 = erro_Velo;
             ref_kq_ant = ref_kq;
-
-            /*
-            * GPC malha de velocidade
-            //ref_Velo1 = ref_Velo*(9.317070813126087e-05);
-            ref_Velo1 = ref_Velo*(130.978479409080e-006);
-            //erro_Velo = ref_Velo1 - ((0.115347981981859*erro_Velo_ant1)  +  ((6.599753085671523e-04)*Velo_avg -(5.668046004358913e-04)*Velo_ant1));
-            erro_Velo = ref_Velo1 - (((152.705934971598e-003)*erro_Velo_ant1)  +  ((881.355078709949e-006)*Velo_avg -(750.376599300869e-006)*Velo_ant1));
-            ref_kq = erro_Velo + ref_kq_ant;
-            erro_Velo_ant1 = erro_Velo;
-            ref_kq_ant = ref_kq;
-            */
         }
-
-        // Observador de fluxo
-//        float Ialp = 0.666666666666667*( ia -0.5*ib - 0.5* ic);
-//        float Ibet = 0.666666666666667* 0.866025403784439 *(ib - ic);
-//
-//        float Valp = 0.666666666666667*( (V_a) -0.5*V_b - 0.5* V_c);
-//        float Vbet = 0.666666666666667* 0.866025403784439 *(V_b - V_c);
-//
-//        U_alp_int = (160e-6)*Valp + U_alp_int;
-//        i_alp_int = (160e-6)*Ialp*Rs + i_alp_int;
-//
-//        U_bet_int = (160e-6)*Vbet + U_bet_int;
-//        i_bet_int = (160e-6)*Ibet*Rs + i_bet_int;
-//
-//        float delta_V_a = (1/Kr)*( U_alp_int  - i_alp_int+u_a);
-//        float flux_a = delta_V_a  - (sig*(Ls+Lm)/Kr)*Ialp;
-//
-//        float delta_V_b = (1/Kr)*( U_bet_int  - i_bet_int+u_b);
-//        float flux_b = delta_V_b  - (sig*(Ls+Lm)/Kr)*Ibet;
-//
-//        float flux_a_cf = 149.7977312077128* flux_a+ 1.9940435300641*flux_a_k1  - 147.8036876776487* flux_a_k2  -1.994039088505832* flux_a_cf_k1  - 0.994047971622293*flux_a_cf_k2;
-//        float flux_b_cf = 149.7977312077128* flux_b+ 1.9940435300641*flux_b_k1  - 147.8036876776487* flux_b_k2  -1.994039088505832* flux_b_cf_k1  - 0.994047971622293*flux_b_cf_k2;
-//
-//        float e_a = Lm*Ialp - (flux_a_cf + w_avg*Tr*flux_b);
-//        float e_a_int = (80e-6)*(e_a + e_a_k1) + e_a_int_k1;
-//        u_a = 37.094784000000004*( e_a_int +   e_a_int_k1) + u_a;
-//
-//        float e_b = Lm*Ibet - (flux_b_cf - w_avg*Tr*flux_a);
-//        float e_b_int = (80e-6)*(e_b + e_b_k1) + e_b_int_k1;
-//        u_b = 37.094784000000004*( e_b_int +   e_b_int_k1) + u_b;
-//
-//        float theta_r = atan2(flux_b ,flux_a);
-//        flux_r = sqrt(( flux_a*flux_a)+( flux_b*flux_b));
-//
-//        int flux_r_DA = (int)(1365* flux_r); // max = 3.0
-//
-//        flux_a_k2 = flux_a_k1;
-//        flux_a_k1 = flux_a;
-//        flux_b_k2 = flux_b_k1;
-//        flux_b_k1 = flux_b;
-//        flux_a_cf_k2 = flux_a_cf_k1;
-//        flux_a_cf_k1 = flux_a_cf;
-//        flux_b_cf_k2 = flux_b_cf_k1;
-//        flux_b_cf_k1 = flux_b_cf;
-//        e_a_int_k1 = e_a_int;
-//        e_a_k1 = e_a;
-//        e_b_int_k1 = e_b_int;
-//        e_b_k1 = e_b;
-//
-//        // Malha de fluxo
-//        float e_flux = 0.4  - flux_r;
-//        float ref_kd = 0.02166802248*0.07*e_flux - 0.01168997752*0.07*e_flux_ant + ref_kd_ant;
-//        e_flux_ant = e_flux;
-//        ref_kd_ant = ref_kd;
-
         ref_kd = 0.4;
-
         n_degrau++;
         if(n_degrau >= 6250*3){
             n_degrau = 0;
-            if(iq == 0.5){//0.5
-                iq = 0.7; //0.7aqui!
+            if(iq == 0.5){
+                iq = 0.7;
             }else{
-                iq = 0.5;//0.5
+                iq = 0.5;
             }
         }
-//        ref_kq = iq;
-
-
-//        DacaRegs.DACVALS.all = (I_q*2000.0/1.0);
-//        DacbRegs.DACVALS.all = (ref_kq*2000.0/1.0);
 
         //REFERÊNCIAS EIXO D E Q:
         ref_kd_AD = (int)(1024*ref_kd) + 2048;
@@ -864,11 +770,6 @@ __interrupt void timer0_isr(){
         //CÁLCULO DOS ERROS
         erro_cd = ref_kd - I_d;
         erro_cq =  ref_kq - I_q;
-
-        //LEI DE CONTROLE:
-        //Controladores eixo d e q.
-//        v_atual_d =103*erro_cd -100.4 * erro_cd_ant1  + v_d_ant ;
-//        v_atual_q =103* erro_cq -100.4* erro_cq_ant1 + v_q_ant ;
 
         float kpi = 103, kii = 100.4;
         v_atual_d = v_d_ant + kpi*erro_cd - kii*erro_cd_ant1;
@@ -884,12 +785,6 @@ __interrupt void timer0_isr(){
         v_q_ant = v_atual_q;
 
         //APLICAÇÃO DAS TRANSFORMADAS INVERSAS DE CLARKE E PARK:
-        //A3 = v_atual_d*__cos(theta_rad);
-        //B3 = - v_atual_q*__sin(theta_rad);
-        //A4 = v_atual_d*__cos(theta_rad - ((DPI)/3.0));
-        //B4 =- v_atual_q*__sin(theta_rad - ((DPI)/3.0));
-        //A5 = v_atual_d*__cos(theta_rad - ((2*DPI)/3.0));
-        //B5 =- v_atual_q*__sin(theta_rad - ((2*DPI)/3.0));
         Va =  0.81649658092772603273242802490196*(v_atual_d*__cos(theta_rad) - v_atual_q*__sin(theta_rad));
         Vb =  0.81649658092772603273242802490196*(v_atual_d*__cos(theta_rad - ((DPI)/3.0)) - v_atual_q*__sin(theta_rad - ((DPI)/3.0)));
         Vc =  0.81649658092772603273242802490196* (v_atual_d*__cos(theta_rad - ((2*DPI)/3.0)) - v_atual_q*__sin(theta_rad - ((2*DPI)/3.0)));
@@ -944,15 +839,16 @@ __interrupt void timer0_isr(){
     }
 
     saida = 1;
-
-    GpioDataRegs.GPADAT.bit.GPIO15 = 0;
-    CpuTimer0Regs.TCR.bit.TIF = 1;
-    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
+    i_amostra++;
+    data1->j = i_amostra;
 }
 
 float ia_filt = 0, ib_filt = 0, ic_filt = 0;
 float ga = 680, gb = 560, gc = 500;
 __interrupt void adca1_isr(void){
+    DINT;
+    AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear INT1 flag
+    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
     GpioDataRegs.GPADAT.bit.GPIO15 = 1;
     Ia_med0 = 2000;
     Ib_med0 = 2000;
@@ -987,17 +883,23 @@ __interrupt void adca1_isr(void){
     ib = ib_filt;
     ic = ic_filt;
 
-    refmras = -ref_MRAS(vc_obs, vb_obs, va_obs, ia, ib, ic, 0)*0.8 + 200;
+    refobs = ref_OBS(vc_obs, vb_obs, va_obs, ia, ib, ic);
 
     DacaRegs.DACVALS.all = Velo_avg * 2.048;
-    DacbRegs.DACVALS.all = refmras * 2.048;
+    DacbRegs.DACVALS.all = refobs * 2.048;
+
+    data1->med_vel = Velo_avg;
+    data1->obs_vel = refobs;
+    data1->ref = ref_Velo;
+
+
 //
 //    DacaRegs.DACVALS.all = (va_obs*2048.0/2.0) + 1024;
 //    DacbRegs.DACVALS.all = (vb_obs*2048.0/2.0) + 1024;
-
     GpioDataRegs.GPADAT.bit.GPIO15 = 0;
     AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear INT1 flag
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
+    EINT;
 }
 
 __interrupt void eqep1_isr(){
